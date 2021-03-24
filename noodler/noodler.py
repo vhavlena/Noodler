@@ -98,6 +98,9 @@ class AutSESystem(SESystem):
     def show_constraints(self):
         show_automata(self.constraints)
 
+    def switched(self):
+        return self.__class__(self.eq.switched, self.constraints)
+
 
 class RESESystem(SESystem):
     """
@@ -415,6 +418,48 @@ class Noodler:
             System to start with
         """
         self.Q = deque([system])
+        self.solutions = []
+
+    def one_solution(self):
+        """
+        Attempts to find a solution.
+
+        Take one system out of queue, noodlify it and then
+        unify each noodle with the right-hand side automata.
+        If this unified system is balanced, store it into
+        self.solutions and return it. Otherwise, add it to
+        queue and continue.
+
+        No guarantees on termination.
+
+        Returns
+        -------
+        Balanced and unified system or None
+        """
+        system = self.Q.popleft()
+        if system.is_balanced():
+            self.solutions.append(system)
+            return system
+
+        while system:
+            noodles = noodlify_system(system)
+            for noodle in noodles:
+                auts_l = split_segment_aut(noodle)
+                auts_r = system.automata_for_side("right")
+                noodle_sys = create_unified_system(system.eq,
+                                                   auts_l,
+                                                   auts_r)
+                if noodle_sys.is_balanced():
+                    self.solutions.append(noodle_sys)
+                    return noodle_sys
+                else:
+                    self.Q.append(noodle_sys)
+
+            system = self.Q.popleft()
+
+        # Nothing was found
+        return None
+
 
     def process_one(self, verbose=False):
         system = self.Q.popleft()
