@@ -453,7 +453,7 @@ class Noodler:
                     self.solutions.append(noodle_sys)
                     return noodle_sys
                 else:
-                    self.Q.append(noodle_sys)
+                    self.Q.append(noodle_sys.switched())
 
             system = self.Q.popleft()
 
