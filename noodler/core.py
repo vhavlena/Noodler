@@ -8,9 +8,8 @@ concatenation of _segments_.
 Classes
 -------
 String_equation
-AutSESystem
-    System of 1 string equation with regular constraints on
-    variables given by automata
+SESystem
+    Abstract class for String-equation systems
 
 Types
 -----
@@ -24,13 +23,10 @@ TransID : int
     ID of transition in automaton
 """
 
-from typing import Dict, Sequence, Type
+from typing import Any, Dict, Sequence, Type
 
 import awalipy
 from awalipy import Automaton
-
-from .utils import show_automata
-
 
 Aut = awalipy.Automaton
 SegAut: Type[Automaton] = awalipy.Automaton
@@ -136,22 +132,27 @@ class StringEquation:
         return f"{self.__class__.__name__}: {self.left} = {self.right}"
 
 
-class AutSESystem:
+class SESystem:
     """
-    String equation with automata constraints.
+    Abstract class for string equation with constraints.
 
-    The system is specified by a string equation and regular
-    constraints on variables defined by automata.
+    The system is specified by a string equation and
+    some (regular) constraints (typically on variables).
 
-    Functions
-    ---------
-    automata_for_side: "left"/"right" → list of auts
+    Public functions
+    ----------------
+    automata_for_side : "left"/"right" → list of auts
     show_constraints
-        In Jupyter, display automaton for each variable
+        Show constraints in Jupyter
+
+    Attributes
+    ----------
+    eq : StringEquation
+    constraints
     """
 
     def __init__(self, equation: StringEquation,
-                 constraints: AutConstraints):
+                 constraints: Any):
         """
         Parameters
         ----------
@@ -175,17 +176,7 @@ class AutSESystem:
         -------
         list of auts
         """
-        var_sequence = self.eq.get_side(side)
-        automata = []
-
-        for var in var_sequence:
-            if make_copies:
-                aut = self.constraints[var].copy()
-            else:
-                aut = self.constraints[var]
-            automata.append(aut)
-
-        return automata
+        raise NotImplementedError
 
     def show_constraints(self):
-        show_automata(self.constraints)
+        print(f"{self.constraints}")

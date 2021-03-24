@@ -16,6 +16,7 @@ import awalipy
 
 from .core import Aut, SegAut, TransID
 
+
 # Comments ###
 # When splitting a segment automaton into segments
 # I only trim the automata. Minimization can be run.

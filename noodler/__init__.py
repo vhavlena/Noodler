@@ -1,2 +1,2 @@
-from .core import AutSESystem, StringEquation
+from .core import StringEquation
 from .noodler import *

@@ -1,16 +1,175 @@
+"""
+Classes
+-------
+AutSESystem
+    System of 1 string equation with regular constraints on
+    variables given by automata
+RESESystem
+    System with constraints represented by regular expressions.
+Noodler
+
+"""
 import awalipy
 import itertools
 
 from collections import deque
-from typing import Sequence
+from typing import Dict, Sequence
 
 # Classes
-from .core import AutSESystem, StringEquation
+from .core import StringEquation, SESystem
 # Types
 from .core import Aut, AutConstraints, SegAut
 
 from .algos import chain_automata, eps_preserving_product, \
     eps_segmentation, multiop, split_segment_aut
+from .utils import show_automata
+
+
+class AutSESystem(SESystem):
+    """
+    String equation with automata constraints.
+
+    The system is specified by a string equation and regular
+    constraints on variables defined by automata.
+
+    Functions
+    ---------
+    automata_for_side : "left"/"right" → list of auts
+    is_balanced : bool
+    show_constraints
+        In Jupyter, display automaton for each variable
+    """
+
+    def __init__(self, equation: StringEquation,
+                 constraints: AutConstraints):
+        """
+        Parameters
+        ----------
+        equation : StringEquation
+        constraints : dict (equation.vars → aut)
+        """
+        super().__init__(equation, constraints)
+
+    def automata_for_side(self, side: str,
+                          make_copies: bool = False) -> Sequence[Aut]:
+        """
+        Return list of automata for left/right side of equation.
+
+        Parameters
+        ----------
+        side : "left" or "right"
+        make_copies : Bool, default False
+            Create copies of constraints automata if True
+        Returns
+        -------
+        list of auts
+        """
+        var_sequence = self.eq.get_side(side)
+        automata = []
+
+        for var in var_sequence:
+            if make_copies:
+                aut = self.constraints[var].copy()
+            else:
+                aut = self.constraints[var]
+            automata.append(aut)
+
+        return automata
+
+    def is_balanced(self) -> bool:
+        """
+        Check if system is balanced.
+
+        System is balanced if automata representing both
+        sides recognize equivalent languages.
+
+        Returns
+        -------
+        True if system is balanced
+        """
+        auts_l = self.automata_for_side("left")
+        auts_r = self.automata_for_side("right")
+
+        aut_l = multiop(auts_l, awalipy.concatenate)
+        aut_r = multiop(auts_r, awalipy.concatenate)
+
+        return awalipy.are_equivalent(aut_l, aut_r)
+
+    def show_constraints(self):
+        show_automata(self.constraints)
+
+
+class RESESystem(SESystem):
+    """
+    String equation with regular expression constraints for variables.
+
+    The system is specified by a string equation and constraints on
+    variables defined by regular expressions.
+
+    Functions
+    ---------
+    automata_for_side : "left"/"right" → list of auts
+    is_balanced : bool
+    show_constraints
+        In Jupyter, display automaton for each variable
+    """
+
+    def __init__(self, equation: StringEquation,
+                 constraints: Dict[str, str]):
+        """
+        Parameters
+        ----------
+        equation : StringEquation
+        constraints : dict (equation.vars → aut)
+        """
+        res = {
+            var: awalipy.RatExp(c) for var, c in constraints.items()
+        }
+        super().__init__(equation, res)
+
+    def automata_for_side(self, side: str,
+                          make_copies: bool = False) -> Sequence[Aut]:
+        """
+        Return list of automata for left/right side of equation.
+
+        Parameters
+        ----------
+        side : "left" or "right"
+        make_copies : Bool, default False
+            Create copies of constraints automata if True
+        Returns
+        -------
+        list of auts
+        """
+        var_sequence = self.eq.get_side(side)
+        aut_const = self._get_automata_constraints()
+        automata = []
+
+        for var in var_sequence:
+            if make_copies:
+                aut = aut_const[var].copy()
+            else:
+                aut = aut_const[var]
+            automata.append(aut)
+
+        return automata
+
+    def _get_automata_constraints(self) -> AutConstraints:
+        """
+        Return dictionatry with constraints as automata.
+        """
+        return {var: c.exp_to_aut() for var, c in self.constraints.items()}
+
+    def aut_system(self) -> AutSESystem:
+        """
+        Convert into system with automata constraints.
+
+        Returns
+        -------
+        AutSESystem
+        """
+        aut_const = self._get_automata_constraints()
+        return AutSESystem(self.eq, aut_const)
 
 
 def noodlify(aut: SegAut,
