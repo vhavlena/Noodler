@@ -205,7 +205,7 @@ def noodlify(aut: SegAut,
         for i in reversed(range(len(noodle_trans))):
             # Remove all ε-tr. of depth i but noodle_trans[i]
             for tr in segments[i]:
-                assert noodle.label_of(tr) == "\e"
+                assert noodle.label_of(tr) == "\\e"
                 if tr != noodle_trans[i]:
                     noodle.del_transition(tr)
 

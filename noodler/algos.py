@@ -203,7 +203,7 @@ def eps_preserving_product(aut_l: SegAut,
                                                state_map[dst_l, dst_r],
                                                a)
 
-            for tl in aut_l.outgoing(sl, "\e"):
+            for tl in aut_l.outgoing(sl, "\\e"):
                 dst_l = aut_l.dst_of(tl)
                 new_aut.add_eps_transition(state_map[sl, sr], state_map[dst_l, sr])
     new_aut.trim_here()
@@ -250,7 +250,7 @@ def eps_segmentation(aut: SegAut) -> Dict[int, Sequence[TransID]]:
             # noinspection PyArgumentList
             out_trs = aut.outgoing(state)
             for tr in out_trs:
-                if aut.label_of(tr) == "\e":
+                if aut.label_of(tr) == "\\e":
                     depths.setdefault(depth, [])
                     depths[depth].append(tr)
                     to_do.append((aut.dst_of(tr), depth + 1))
@@ -290,8 +290,8 @@ def split_segment_aut(aut: SegAut) -> Sequence[Aut]:
     for depth, trans in eps_trans.items():
         # Split the left segment from aut into new_segment.
         for tr in trans:
-            assert aut.label_of(tr) == "\e"
-            assert segments[depth].label_of(tr) == "\e"
+            assert aut.label_of(tr) == "\\e"
+            assert segments[depth].label_of(tr) == "\\e"
             segments[depth].set_final(aut.src_of(tr))
             segments[depth].del_transition(tr)
             for i in range(depth + 1, len(segments)):
