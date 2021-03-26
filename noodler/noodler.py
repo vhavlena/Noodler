@@ -339,6 +339,9 @@ def create_unified_system(equation: StringEquation,
     automaton is a constraint for `v` in the resulting
     system.
 
+    If the language (of the product) for some variable is
+    empty, the system can't be unified.
+
     Parameters
     ----------
     equation: StringEquation
@@ -348,7 +351,8 @@ def create_unified_system(equation: StringEquation,
     Returns
     -------
     AutSESystem
-        Unified system for ``equation``.
+        Unified system for ``equation`` and None if the system cannot
+        be unified.
     """
     if len(left_auts) != len(equation.left):
         raise ValueError(f"""
@@ -369,6 +373,8 @@ def create_unified_system(equation: StringEquation,
         var_auts = aut_l.union(aut_r)
         product: Aut = multiop(list(var_auts), awalipy.product)
         const[var] = product.minimal_automaton().trim()
+        if const[var].num_states() == 0:
+            return None
 
     return AutSESystem(equation, const)
 
@@ -449,6 +455,10 @@ class Noodler:
                 noodle_sys = create_unified_system(system.eq,
                                                    auts_l,
                                                    auts_r)
+                # Noodle cannot be unified
+                if noodle_sys is None:
+                    continue
+
                 if noodle_sys.is_balanced():
                     self.solutions.append(noodle_sys)
                     return noodle_sys
