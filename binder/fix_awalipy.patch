@@ -1,0 +1,38 @@
+diff --git a/awalipy/cython-src/automaton_2_class.pyx b/awalipy/cython-src/automaton_2_class.pyx
+index 9602492..e1605ee 100644
+--- a/awalipy/cython-src/automaton_2_class.pyx
++++ b/awalipy/cython-src/automaton_2_class.pyx
+@@ -1037,7 +1037,7 @@ labelled by <label>.
+ 
+ 
+ ## ========================================================================= ##
+-    cpdef str shortest(self, int max_len):
++    cpdef dict shortest(self, int max_len):
+         """
+         Usage:  aut.shortest(max_len):
+ 
+diff --git a/awalipy/cython-src/automaton_3_function.pyx b/awalipy/cython-src/automaton_3_function.pyx
+index fe19f63..529ba56 100644
+--- a/awalipy/cython-src/automaton_3_function.pyx
++++ b/awalipy/cython-src/automaton_3_function.pyx
+@@ -860,9 +860,9 @@ def minimize(Automaton aut, str method = "moore"):
+ 
+ 
+ ## ========================================================================= ##
+-def minimal(Automaton aut):
++def minimal_automaton(Automaton aut):
+     """
+-    Usage:  minimal(aut)
++    Usage:  minimal_automaton(aut)
+ 
+     Description:  computes and returns the minimal automaton accepting the language of <aut>, using determinization if necessary.
+ 
+@@ -874,7 +874,7 @@ def minimal(Automaton aut):
+ 
+     Note:  If <aut> is trim (resp. complete), so will be the returned automaton. Otherwise, the returned automaton is not ensured to be complete, nor trim.
+     """
+-    return aut.minimal()
++    return aut.minimal_automaton()
+ 
+ 
+ ## ========================================================================= ##
