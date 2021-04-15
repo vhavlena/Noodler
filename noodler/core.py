@@ -8,7 +8,7 @@ concatenation of _segments_.
 Classes
 -------
 String_equation
-SESystem
+SingleSESystem
     Abstract class for String-equation systems
 
 Types
@@ -132,7 +132,7 @@ class StringEquation:
         return f"{self.__class__.__name__}: {self.left} = {self.right}"
 
 
-class SESystem:
+class SingleSESystem:
     """
     Abstract class for string equation with constraints.
 

@@ -1,4 +1,4 @@
-from noodler import AutSESystem, RESESystem, StringEquation
+from noodler import AutSingleSESystem, RESESystemSingle, StringEquation
 
 
 def test_balanced():
@@ -14,8 +14,8 @@ def test_balanced():
         "z": Sigma_plus
     }
 
-    re_bal = RESESystem(balanced, constraints)
-    re_unbal = RESESystem(unbalanced, constraints)
+    re_bal = RESESystemSingle(balanced, constraints)
+    re_unbal = RESESystemSingle(unbalanced, constraints)
 
     aut_bal = re_bal.aut_system()
     aut_unbal = re_unbal.aut_system()

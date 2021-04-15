@@ -1,10 +1,10 @@
 """
 Classes
 -------
-AutSESystem
+AutSingleSESystem
     System of 1 string equation with regular constraints on
     variables given by automata
-RESESystem
+RESESystemSingle
     System with constraints represented by regular expressions.
 Noodler
 
@@ -16,7 +16,7 @@ from collections import deque
 from typing import Dict, Sequence
 
 # Classes
-from .core import StringEquation, SESystem
+from .core import StringEquation, SingleSESystem
 # Types
 from .core import Aut, AutConstraints, SegAut
 
@@ -25,7 +25,7 @@ from .algos import chain_automata, eps_preserving_product, \
 from .utils import show_automata
 
 
-class AutSESystem(SESystem):
+class AutSingleSESystem(SingleSESystem):
     """
     String equation with automata constraints.
 
@@ -102,7 +102,7 @@ class AutSESystem(SESystem):
         return self.__class__(self.eq.switched, self.constraints)
 
 
-class RESESystem(SESystem):
+class RESESystemSingle(SingleSESystem):
     """
     String equation with regular expression constraints for variables.
 
@@ -163,16 +163,16 @@ class RESESystem(SESystem):
         """
         return {var: c.exp_to_aut() for var, c in self.constraints.items()}
 
-    def aut_system(self) -> AutSESystem:
+    def aut_system(self) -> AutSingleSESystem:
         """
         Convert into system with automata constraints.
 
         Returns
         -------
-        AutSESystem
+        AutSingleSESystem
         """
         aut_const = self._get_automata_constraints()
-        return AutSESystem(self.eq, aut_const)
+        return AutSingleSESystem(self.eq, aut_const)
 
 
 def noodlify(aut: SegAut,
@@ -219,13 +219,13 @@ def noodlify(aut: SegAut,
     return noodles
 
 
-def noodlify_system(system: AutSESystem) -> Sequence[SegAut]:
+def noodlify_system(system: AutSingleSESystem) -> Sequence[SegAut]:
     """
     Make left-noodles from system.
 
     Parameters
     ----------
-    system : AutSESystem
+    system : AutSingleSESystem
         System to be noodlified
 
     Returns
@@ -328,7 +328,7 @@ def unify(eq_l, eq_r,
 
 def create_unified_system(equation: StringEquation,
                           left_auts: Sequence[Aut],
-                          right_auts: Sequence[Aut]) -> AutSESystem:
+                          right_auts: Sequence[Aut]) -> AutSingleSESystem:
     """
     Create unified system from equation and automata.
 
@@ -350,7 +350,7 @@ def create_unified_system(equation: StringEquation,
         resp. ``equation.right``.
     Returns
     -------
-    AutSESystem
+    AutSingleSESystem
         Unified system for ``equation`` and None if the system cannot
         be unified.
     """
@@ -376,7 +376,7 @@ def create_unified_system(equation: StringEquation,
         if const[var].num_states() == 0:
             return None
 
-    return AutSESystem(equation, const)
+    return AutSingleSESystem(equation, const)
 
 
 def is_unified(equation, auts_l, auts_r):
@@ -420,7 +420,7 @@ class Noodler:
 
         Parameters
         ----------
-        system: AutSESystem
+        system: AutSingleSESystem
             System to start with
         """
         self.Q = deque([system])

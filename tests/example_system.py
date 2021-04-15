@@ -1,4 +1,4 @@
-from noodler import AutSESystem, RESESystem, StringEquation
+from noodler import AutSingleSESystem, RESESystemSingle, StringEquation
 
 e = StringEquation("xyz", "xyxy")
 alph = "abc"
@@ -9,5 +9,5 @@ constraints = {
     "y" : f"{Sigma_exp}{Sigma_plus}",
     "z" : Sigma_plus
 }
-re_system = RESESystem(e, constraints)
-system: AutSESystem = re_system.aut_system()
+re_system = RESESystemSingle(e, constraints)
+system: AutSingleSESystem = re_system.aut_system()
