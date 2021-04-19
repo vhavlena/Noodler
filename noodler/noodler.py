@@ -4,8 +4,12 @@ Classes
 AutSingleSEQuery
     query of 1 string equation with regular constraints on
     variables given by automata
-RESESystemSingle
-    System with constraints represented by regular expressions.
+RESingleSEQuery
+    query with constraints represented by regular expressions.
+SimpleNoodler
+    Creates unified noodles for AutSingleSEQuery instances. This is
+    enough for simple equations (all variables that occur the
+    right-hand side of the equation are unique).
 QueueNoodler
     Seek solutions using noodlification for non-simple equations.
 """
@@ -167,6 +171,59 @@ def is_unified(equation, auts_l, auts_r):
         different languages. True otherwise.
     """
     pass
+
+
+class SimpleNoodler:
+    """
+    Makes unified automata noodles for easy equations.
+
+    This class is intended to work for one simple
+    SingleSEquery. It creates segment automaton for the
+    left-hand side, intersects it with the automaton for
+    the right-hand side and creates all possible unified
+    noodles.
+
+    Restrictions on equation
+    ------------------------
+    All variables that appear on the right-hand side of
+    the equation must have only one occurrence in the
+    equation.
+
+    Attributes
+    ---------
+    query : SingleSEQuery
+    noodles : Sequence[SingleSEQuery]
+        unified noodles for ``query``
+    """
+
+    def __init__(self, query: SingleSEQuery):
+        self.query = query
+        self.noodles = None
+
+    def noodlify(self) -> Sequence[SingleSEQuery]:
+        """
+        Create all possible non-empty unified noodles for
+        self.query.
+
+        Returns
+        -------
+        self.noodles:
+        """
+        self.noodles = []
+
+        noodles: Sequence[SegAut] = noodlify_query(self.query)
+        for noodle in noodles:
+            auts_l = split_segment_aut(noodle)
+            auts_r = self.query.automata_for_side("right")
+            unified = create_unified_query(self.query.eq,
+                                           auts_l,
+                                           auts_r)
+
+            # Noodle cannot be unified
+            if unified is not None:
+                self.noodles.append(unified)
+
+        return self.noodles
 
 
 class QueueNoodler:
