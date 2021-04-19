@@ -6,7 +6,7 @@ AutSingleSESystem
     variables given by automata
 RESESystemSingle
     System with constraints represented by regular expressions.
-Noodler
+QueueNoodler
 
 """
 import awalipy
@@ -404,9 +404,9 @@ def is_unified(equation, auts_l, auts_r):
     pass
 
 
-class Noodler:
+class QueueNoodler:
     """
-    Noodler makes and unifies automata noodles.
+    QueueNoodler makes and unifies automata noodles.
 
     Attributes
     ----------
