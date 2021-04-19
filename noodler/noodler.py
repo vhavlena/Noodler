@@ -16,11 +16,12 @@ from collections import deque
 from typing import Dict, Sequence
 
 # Classes
-from .core import StringEquation, SingleSEQuery
+from .core import StringEquation
+from .sequery import SingleSEQuery
 # Types
 from .core import Aut, AutConstraints, SegAut
 
-from .algos import chain_automata, eps_preserving_product, \
+from .algos import eps_preserving_product, \
     eps_segmentation, multiop, split_segment_aut
 from .utils import show_automata
 
@@ -97,9 +98,6 @@ class AutSingleSEQuery(SingleSEQuery):
 
     def show_constraints(self):
         show_automata(self.constraints)
-
-    def switched(self):
-        return self.__class__(self.eq.switched, self.constraints)
 
 
 class RESingleSEQuery(SingleSEQuery):
@@ -235,14 +233,9 @@ def noodlify_query(query: SingleSEQuery) -> Sequence[SegAut]:
     noodles : Sequence[Aut]
         left-noodles for ``query``
     """
-    left_in = query.automata_for_side("left")
-    right_in = query.automata_for_side("right")
-    left_seg_aut = chain_automata(left_in)
-    right_aut: awalipy.Automaton = multiop(right_in, awalipy.concatenate)
-    right_aut = right_aut.minimal_automaton().trim()
-    product = eps_preserving_product(left_seg_aut, right_aut,
-                                     history=True)
-
+    left: SegAut = query.seg_aut("left")
+    right: Aut = query.proper_aut("right")
+    product: SegAut = eps_preserving_product(left, right, history=True)
     return noodlify(product)
 
 

@@ -23,7 +23,7 @@ TransID : int
     ID of transition in automaton
 """
 
-from typing import Any, Dict, Sequence, Type
+from typing import Dict, Type
 
 import awalipy
 
@@ -129,89 +129,3 @@ class StringEquation:
 
     def __repr__(self):
         return f"{self.__class__.__name__}: {self.left} = {self.right}"
-
-
-class SingleSEQuery:
-    """
-    Abstract class for string equation with constraints.
-
-    The query is specified by a string equation and
-    some (regular) constraints (typically on variables).
-
-    Public functions
-    ----------------
-    automata_for_side : "left"/"right" → list of auts
-    seg_aut : "left"/"right" → SegAut
-        return segment automaton representing one side of ``eq``
-    proper_aut : "left"/"right" → Aut
-        return proper (without ε-trans.) automaton representing
-        one side of ``eq``
-    show_constraints
-        Show constraints in Jupyter
-
-    Attributes
-    ----------
-    eq : StringEquation
-    constraints
-    """
-
-    def __init__(self, equation: StringEquation,
-                 constraints: Any):
-        """
-        Parameters
-        ----------
-        equation : StringEquation
-        constraints : dict (equation.vars → aut)
-        """
-        self.eq = equation
-        self.constraints = constraints
-
-    def automata_for_side(self, side: str,
-                          make_copies: bool = False) -> Sequence[Aut]:
-        """
-        Return list of automata for left/right side of equation.
-
-        Parameters
-        ----------
-        side : "left" or "right"
-        make_copies : Bool, default False
-            Create copies of constraints automata if True
-        Returns
-        -------
-        list of auts
-        """
-        raise NotImplementedError
-
-    def seg_aut(self, side: str) -> SegAut:
-        """
-        Returns segment automaton for left/right side of equation
-
-        Parameters
-        ----------
-        side : "left" or "right"
-
-        Returns
-        -------
-        SegAut representing the language of one side of equation.
-        """
-        raise NotImplementedError
-
-    def proper_aut(self, side: str,
-                   minimize: bool) -> Aut:
-        """
-        Returns automaton without ε-transitions for left/right side
-        of equation.
-
-        Parameters
-        ----------
-        side : "left" or "right"
-        minimize : return the minimal aut if True
-
-        Returns
-        -------
-        Aut representing the language of one side of equation.
-        """
-        raise NotImplementedError
-
-    def show_constraints(self):
-        print(f"{self.constraints}")
