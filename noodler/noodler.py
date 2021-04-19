@@ -223,6 +223,8 @@ def noodlify_system(system: AutSingleSESystem) -> Sequence[SegAut]:
     """
     Make left-noodles from system.
 
+    The noodles (result) are not necessary unified.
+
     Parameters
     ----------
     system : AutSingleSESystem
@@ -242,88 +244,6 @@ def noodlify_system(system: AutSingleSESystem) -> Sequence[SegAut]:
                                      history=True)
 
     return noodlify(product)
-
-
-def unify(eq_l, eq_r,
-          auts_l: Sequence[Aut],
-          auts_r: Sequence[Aut],
-          **kwargs):
-    """
-    Unify automata system for string equation.
-    
-    The equation is given as ``eq_l = eq_r`` and the
-    system consists of two list of automata. Each 
-    automaton in ``auts_l`` must correspond to a 
-    variable in ``eq_l`` and analogously for ``_r``.
-    
-    For each variable from ``eq_l`` and ``eq_r`` make
-    an intersection of all automata corresponding to
-    this variable. If x is at position 2 in ``eq_l``
-    and at positions 0 and 3 in ``eq_r``, unify makes
-    product of ``auts_l[2]`` with ``auts_r[0]`` and
-    ``auts_r[3]``.
-    
-    Parameters
-    ----------
-    eq_l, eq_r : str or list of str
-    auts_l, auts_r : list of auts
-        Length of auts_l must agree with length of eq_l
-    make_copies : Bool (default False)
-        Do not share the automata for each variable, make
-        copies instead, if True.
-    Returns
-    -------
-    new_auts_l, new_auts_r : list of auts
-        Sequence of automata where automata representing
-        the same variable are the same.
-    """
-    if len(auts_l) != len(eq_l):
-        raise ValueError(f"""
-        The length of `auts_l` must agree with length of `eq_l`.
-        Given len(auts_l) = {len(auts_l)} and len(eq_l) = {len(eq_l)}.""")
-    if len(auts_r) != len(eq_r):
-        raise ValueError(f"""
-        The length of `auts_r` must agree with length of `eq_r`.
-        Given len(auts_r) = {len(auts_r)} and len(eq_r) = {len(eq_r)}.""")
-
-    make_copies = kwargs.get("make_copies", False)
-
-    variables = set(eq_l).union(set(eq_r))
-    res_l = list(auts_l)
-    res_r = list(auts_r)
-
-    for var in variables:
-        indices_l = [i for i, v in enumerate(eq_l) if v == var]
-        indices_r = [i for i, v in enumerate(eq_r) if v == var]
-
-        if len(indices_l) + len(indices_r) <= 1:
-            continue
-
-        automata = []
-        for i in indices_l:
-            # Call to proper changes the automata not to contain
-            # ε-transitions. This is needed for product to work
-            # in Awalipy.
-            automata.append(auts_l[i].proper().min_quotient())
-        for i in indices_r:
-            automata.append(auts_r[i].proper().min_quotient())
-
-        var_aut = automata[0]
-        for next_aut in automata[1:]:
-            var_aut = awalipy.product(var_aut, next_aut).min_quotient()
-
-        for i in indices_l:
-            if make_copies:
-                res_l[i] = var_aut.copy()
-            else:
-                res_l[i] = var_aut
-        for i in indices_r:
-            if make_copies:
-                res_r[i] = var_aut.copy()
-            else:
-                res_r[i] = var_aut
-
-    return res_l, res_r
 
 
 def create_unified_system(equation: StringEquation,
