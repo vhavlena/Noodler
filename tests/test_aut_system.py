@@ -1,4 +1,4 @@
-from noodler import AutSingleSESystem, RESESystemSingle, StringEquation
+from noodler import AutSingleSEQuery, RESingleSEQuery, StringEquation
 
 
 def test_balanced():
@@ -14,11 +14,11 @@ def test_balanced():
         "z": Sigma_plus
     }
 
-    re_bal = RESESystemSingle(balanced, constraints)
-    re_unbal = RESESystemSingle(unbalanced, constraints)
+    re_bal = RESingleSEQuery(balanced, constraints)
+    re_unbal = RESingleSEQuery(unbalanced, constraints)
 
-    aut_bal = re_bal.aut_system()
-    aut_unbal = re_unbal.aut_system()
+    aut_bal = re_bal.aut_query()
+    aut_unbal = re_unbal.aut_query()
 
     assert aut_bal.is_balanced()
     assert not aut_unbal.is_balanced()

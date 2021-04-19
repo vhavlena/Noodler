@@ -1,13 +1,13 @@
 """
 Classes
 -------
-AutSingleSESystem
-    System of 1 string equation with regular constraints on
+AutSingleSEQuery
+    query of 1 string equation with regular constraints on
     variables given by automata
 RESESystemSingle
     System with constraints represented by regular expressions.
 QueueNoodler
-
+    Seek solutions using noodlification for non-simple equations.
 """
 import awalipy
 import itertools
@@ -16,7 +16,7 @@ from collections import deque
 from typing import Dict, Sequence
 
 # Classes
-from .core import StringEquation, SingleSESystem
+from .core import StringEquation, SingleSEQuery
 # Types
 from .core import Aut, AutConstraints, SegAut
 
@@ -25,11 +25,11 @@ from .algos import chain_automata, eps_preserving_product, \
 from .utils import show_automata
 
 
-class AutSingleSESystem(SingleSESystem):
+class AutSingleSEQuery(SingleSEQuery):
     """
     String equation with automata constraints.
 
-    The system is specified by a string equation and regular
+    The query is specified by a string equation and regular
     constraints on variables defined by automata.
 
     Functions
@@ -78,14 +78,14 @@ class AutSingleSESystem(SingleSESystem):
 
     def is_balanced(self) -> bool:
         """
-        Check if system is balanced.
+        Check if query is balanced.
 
-        System is balanced if automata representing both
+        query is balanced if automata representing both
         sides recognize equivalent languages.
 
         Returns
         -------
-        True if system is balanced
+        True if query is balanced
         """
         auts_l = self.automata_for_side("left")
         auts_r = self.automata_for_side("right")
@@ -102,11 +102,11 @@ class AutSingleSESystem(SingleSESystem):
         return self.__class__(self.eq.switched, self.constraints)
 
 
-class RESESystemSingle(SingleSESystem):
+class RESingleSEQuery(SingleSEQuery):
     """
     String equation with regular expression constraints for variables.
 
-    The system is specified by a string equation and constraints on
+    The query is specified by a string equation and constraints on
     variables defined by regular expressions.
 
     Functions
@@ -159,20 +159,20 @@ class RESESystemSingle(SingleSESystem):
 
     def _get_automata_constraints(self) -> AutConstraints:
         """
-        Return dictionatry with constraints as automata.
+        Return dictionary with constraints as automata.
         """
         return {var: c.exp_to_aut() for var, c in self.constraints.items()}
 
-    def aut_system(self) -> AutSingleSESystem:
+    def aut_query(self) -> AutSingleSEQuery:
         """
-        Convert into system with automata constraints.
+        Convert into query with automata constraints.
 
         Returns
         -------
-        AutSingleSESystem
+        AutSingleSEQuery
         """
         aut_const = self._get_automata_constraints()
-        return AutSingleSESystem(self.eq, aut_const)
+        return AutSingleSEQuery(self.eq, aut_const)
 
 
 def noodlify(aut: SegAut,
@@ -219,24 +219,24 @@ def noodlify(aut: SegAut,
     return noodles
 
 
-def noodlify_system(system: AutSingleSESystem) -> Sequence[SegAut]:
+def noodlify_query(query: SingleSEQuery) -> Sequence[SegAut]:
     """
-    Make left-noodles from system.
+    Make left-noodles from query.
 
     The noodles (result) are not necessary unified.
 
     Parameters
     ----------
-    system : AutSingleSESystem
-        System to be noodlified
+    query : AutSingleSEQuery
+        query to be noodlified
 
     Returns
     -------
     noodles : Sequence[Aut]
-        left-noodles for ``system``
+        left-noodles for ``query``
     """
-    left_in = system.automata_for_side("left")
-    right_in = system.automata_for_side("right")
+    left_in = query.automata_for_side("left")
+    right_in = query.automata_for_side("right")
     left_seg_aut = chain_automata(left_in)
     right_aut: awalipy.Automaton = multiop(right_in, awalipy.concatenate)
     right_aut = right_aut.minimal_automaton().trim()
@@ -246,21 +246,21 @@ def noodlify_system(system: AutSingleSESystem) -> Sequence[SegAut]:
     return noodlify(product)
 
 
-def create_unified_system(equation: StringEquation,
-                          left_auts: Sequence[Aut],
-                          right_auts: Sequence[Aut]) -> AutSingleSESystem:
+def create_unified_query(equation: StringEquation,
+                         left_auts: Sequence[Aut],
+                         right_auts: Sequence[Aut]) -> AutSingleSEQuery:
     """
-    Create unified system from equation and automata.
+    Create unified query from equation and automata.
 
     Unify automata given by left_auts and right_auts
     with respect to equation. That is, for each variable v
     present in the equation, make a product of automata
     that correspond to a occurrence of `v`. The product
     automaton is a constraint for `v` in the resulting
-    system.
+    query.
 
     If the language (of the product) for some variable is
-    empty, the system can't be unified.
+    empty, the query can't be unified.
 
     Parameters
     ----------
@@ -270,8 +270,8 @@ def create_unified_system(equation: StringEquation,
         resp. ``equation.right``.
     Returns
     -------
-    AutSingleSESystem
-        Unified system for ``equation`` and None if the system cannot
+    AutSingleSEQuery
+        Unified query for ``equation`` and None if the query cannot
         be unified.
     """
     if len(left_auts) != len(equation.left):
@@ -296,12 +296,12 @@ def create_unified_system(equation: StringEquation,
         if const[var].num_states() == 0:
             return None
 
-    return AutSingleSESystem(equation, const)
+    return AutSingleSEQuery(equation, const)
 
 
 def is_unified(equation, auts_l, auts_r):
     """
-    Check if system is unified.
+    Check if query is unified.
 
     Check for each variable of equation whether
     all corresponding automata in auts_l and auts_r
@@ -331,28 +331,28 @@ class QueueNoodler:
     Attributes
     ----------
     Q : deque
-        Keep systems to be processed.
+        Keep querys to be processed.
     """
 
-    def __init__(self, system):
+    def __init__(self, query):
         """
         Create a noodler with an initialized queue.
 
         Parameters
         ----------
-        system: AutSingleSESystem
-            System to start with
+        query: AutSingleSEQuery
+            query to start with
         """
-        self.Q = deque([system])
+        self.Q = deque([query])
         self.solutions = []
 
     def one_solution(self):
         """
         Attempts to find a solution.
 
-        Take one system out of queue, noodlify it and then
+        Take one query out of queue, noodlify it and then
         unify each noodle with the right-hand side automata.
-        If this unified system is balanced, store it into
+        If this unified query is balanced, store it into
         self.solutions and return it. Otherwise, add it to
         queue and continue.
 
@@ -360,21 +360,21 @@ class QueueNoodler:
 
         Returns
         -------
-        Balanced and unified system or None
+        Balanced and unified query or None
         """
-        system = self.Q.popleft()
-        if system.is_balanced():
-            self.solutions.append(system)
-            return system
+        query = self.Q.popleft()
+        if query.is_balanced():
+            self.solutions.append(query)
+            return query
 
-        while system:
-            noodles = noodlify_system(system)
+        while query:
+            noodles = noodlify_query(query)
             for noodle in noodles:
                 auts_l = split_segment_aut(noodle)
-                auts_r = system.automata_for_side("right")
-                noodle_sys = create_unified_system(system.eq,
-                                                   auts_l,
-                                                   auts_r)
+                auts_r = query.automata_for_side("right")
+                noodle_sys = create_unified_query(query.eq,
+                                                  auts_l,
+                                                  auts_r)
                 # Noodle cannot be unified
                 if noodle_sys is None:
                     continue
@@ -385,31 +385,30 @@ class QueueNoodler:
                 else:
                     self.Q.append(noodle_sys.switched())
 
-            system = self.Q.popleft()
+            query = self.Q.popleft()
 
         # Nothing was found
         return None
 
-
     def process_one(self, verbose=False):
-        system = self.Q.popleft()
+        query = self.Q.popleft()
 
         if verbose:
             print(f"""
 ================================
-Processing the following system:
-{system.eq}
+Processing the following query:
+{query.eq}
 Constraints:
-{system.constraints}
+{query.constraints}
 --------------------------------""")
 
-        noodles: Sequence[SegAut] = noodlify_system(system)
+        noodles: Sequence[SegAut] = noodlify_query(query)
         for noodle in noodles:
             auts_l = split_segment_aut(noodle)
-            auts_r = system.automata_for_side("right")
-            noodle_sys = create_unified_system(system.eq,
-                                               auts_l,
-                                               auts_r)
+            auts_r = query.automata_for_side("right")
+            noodle_sys = create_unified_query(query.eq,
+                                              auts_l,
+                                              auts_r)
 
             noodle_sys.eq = noodle_sys.eq.switched
             self.Q.append(noodle_sys)

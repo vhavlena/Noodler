@@ -4,7 +4,7 @@ Solving string constraints via segment-automata and noodles.
 [![Binder_badge]][binder_link]
 
 The notebook [example-full-algo](example-full-algo.ipynb) uses Noodler to
-produce balanced and unified system for simple string equations.
+produce balanced and unified query for simple string equations.
 
 See [pastry and noodles](pastry-and-noodles.ipynb) to understand noodlification and unification.
 

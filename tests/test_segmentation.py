@@ -1,9 +1,9 @@
 import awalipy
 import pytest
 from noodler import chain_automata, multiop, split_segment_aut
-from example_system import system
+from example_query import query
 
-auts_l = system.automata_for_side("left")
+auts_l = query.automata_for_side("left")
 segment_l = chain_automata(auts_l)
 concat_l = multiop(auts_l, awalipy.concatenate)
 
@@ -19,6 +19,10 @@ def test_segmantation():
 
 
 def test_split_returns_no_eps():
+    """
+    Result of split_segment_aut should be aut
+    without ε-transitons.
+    """
     split = split_segment_aut(segment_l)
     for aut in split:
         with pytest.raises(RuntimeError):
