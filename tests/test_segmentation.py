@@ -1,6 +1,6 @@
 import awalipy
 import pytest
-from noodler import chain_automata, multiop, split_segment_aut
+from noodler.algos import chain_automata, multiop, split_segment_aut
 from example_query import query
 
 auts_l = query.automata_for_side("left")

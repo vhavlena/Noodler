@@ -1,5 +1,5 @@
 """
-Basic operations on automata, string equations, and SESystems.
+Additional (on top of `awalipy`) basic operations on automata
 
 Public functions
 ----------------

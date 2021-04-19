@@ -1,4 +1,5 @@
-from noodler import AutSingleSEQuery, RESingleSEQuery, StringEquation
+from noodler import StringEquation
+from noodler.sequery import AutSingleSEQuery, RESingleSEQuery
 
 e = StringEquation("xyz", "xyxy")
 alph = "abc"

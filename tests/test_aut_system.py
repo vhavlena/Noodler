@@ -1,4 +1,5 @@
-from noodler import AutSingleSEQuery, RESingleSEQuery, StringEquation
+from noodler import StringEquation
+from noodler.sequery import AutSingleSEQuery, RESingleSEQuery
 
 
 def test_balanced():
