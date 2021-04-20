@@ -2,13 +2,14 @@
 Contains various implementations of queries build upon
 string equations (SE) or upon systems of SE.
 """
-from typing import Any, Sequence, Dict
+from typing import Sequence, Dict, Collection, Optional
 
 import awalipy
 
+from .utils import show_automata
 from .algos import chain_automata, multiop
 #types
-from .core import AutConstraints, Aut, SegAut
+from .core import AutConstraints, Aut, Constraints, SegAut
 # classes
 from .core import StringEquation
 
@@ -38,7 +39,7 @@ class SingleSEQuery:
     """
 
     def __init__(self, equation: StringEquation,
-                 constraints: Any):
+                 constraints: Constraints):
         """
         Parameters
         ----------

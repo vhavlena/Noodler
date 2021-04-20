@@ -23,16 +23,20 @@ TransID : int
     ID of transition in automaton
 """
 
-from typing import Dict, Type
+from typing import Dict, Type, Union, Sequence
 
 import awalipy
 
 Aut = awalipy.Automaton
 SegAut: Type[awalipy.Automaton] = awalipy.Automaton
+RE = awalipy.RatExp
 
 TransID = int
 
 AutConstraints = Dict[str, Aut]
+REConstraints = Dict[str, RE]
+StrConstraints = Dict[str, str]
+Constraints = Union[AutConstraints, REConstraints, StrConstraints]
 
 
 class StringEquation:
@@ -129,3 +133,29 @@ class StringEquation:
 
     def __repr__(self):
         return f"{self.__class__.__name__}: {self.left} = {self.right}"
+
+
+def create_automata_constraints(constraints: Constraints) -> AutConstraints:
+    """
+    Parse any constraints-like dictionary into automata constraints.
+
+    Parameters
+    ----------
+    constraints: Constraints Dict[str,RE] or Dict[str,str]
+        Dictionary var → RE (where RE is either string or awalipy.RatExp)
+    Returns
+    -------
+    AutConstraint
+        The automata representation of constraints
+    """
+    res = {}
+    for var, const in constraints.items():
+        if isinstance(const, str):
+            const = awalipy.RatExp(const)
+
+        if not isinstance(const, RE):
+            raise TypeError("constraints must be a regular expression")
+
+        res[var] = const.exp_to_aut()
+
+    return res

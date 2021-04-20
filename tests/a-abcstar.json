@@ -1,0 +1,24 @@
+{"Automaton":[
+  {"Context":[
+    {"Labels":
+      {"Label Type":"Letters" "Alphabet":["a","b","c"]}
+    },
+    {"Weights":
+      {"Semiring":"B"}
+    }]
+  },
+  {"Content":[
+    {"States":[
+      {"Id":0 "Name":"s0" "History":"a(a+b+c)*"},
+      {"Id":1 "Name":"s1" "History":"(a+b+c)*"}]
+    },
+    {"Initial States":[0]},
+    {"Final States":[1]},
+    {"Transitions":[
+      {"Src":0 "Dst":1 "Label":"a"},
+      {"Src":1 "Dst":1 "Label":"a"},
+      {"Src":1 "Dst":1 "Label":"b"},
+      {"Src":1 "Dst":1 "Label":"c"}]
+    }]
+  }]
+}
