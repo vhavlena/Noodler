@@ -135,6 +135,42 @@ class StringEquation:
         return f"{self.__class__.__name__}: {self.left} = {self.right}"
 
 
+def is_straightline(equations: Sequence[StringEquation]) -> bool:
+    """
+    Check if SE system is in Single Static Assignment (SSA) form.
+
+    A system given as a sequence of equations belongs to the
+    straight-line (a.k.a. Single Static Assignment) fragment
+    if and only if:
+     1. Left sides of the equations consist of 1 variable only.
+        This is, the system can be written as:
+          x₀ = uvw
+          x₁ = ...
+          ...
+          x_n = ...
+     2. x_i does not appear in any eq_j for j<i holds for all i.
+
+    Parameters
+    ----------
+    equations
+
+    Returns
+    -------
+    True is given SE system is in SSA form.
+    """
+    definitions = set()
+    for eq in equations[::-1]:
+        if len(eq.left) != 1 or eq.left[0] in definitions:
+            return False
+        definitions.add(eq.left[0])
+
+        for var in eq.right:
+            if var in definitions:
+                return False
+
+    return True
+
+
 def create_automata_constraints(constraints: Constraints) -> AutConstraints:
     """
     Parse any constraints-like dictionary into automata constraints.
