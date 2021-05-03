@@ -12,6 +12,8 @@ from .algos import chain_automata, multiop
 from .core import AutConstraints, Aut, Constraints, SegAut
 # classes
 from .core import StringEquation
+# functions
+from .core import create_automata_constraints
 
 
 class SingleSEQuery:
@@ -100,7 +102,7 @@ class SingleSEQuery:
         res = multiop(self.automata_for_side(side), awalipy.concatenate)
 
         if minimize:
-            return res.min_quotient()
+            return res.minimal_automaton()
 
         return res
 
@@ -259,3 +261,34 @@ class RESingleSEQuery(SingleSEQuery):
         """
         aut_const = self._get_automata_constraints()
         return AutSingleSEQuery(self.eq, aut_const)
+
+
+class MultiSEQuery:
+    """
+    Represents query with system of String Equations
+
+    The query consists of a sequence of equations
+    and constraints for variables.
+
+    Attributes
+    ----------
+    equations : Sequence[StringEquation]
+    aut_constraints : AutConstraints
+    """
+
+    def __init__(self, equations: Sequence[StringEquation],
+                 constraints: Constraints):
+        """
+        Create MultiSEQuery.
+
+        Parameters
+        ----------
+        equations: Sequence[StringEquation]
+        constraints: Constraints
+            Dictionary of the form var→constraint. The constraints
+            for distinct variables need to share the alphabet.
+        """
+        # TODO allow list of strings
+        self.equations = equations
+
+        self.aut_constraints = create_automata_constraints(constraints)
