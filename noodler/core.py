@@ -175,10 +175,15 @@ def create_automata_constraints(constraints: Constraints) -> AutConstraints:
     """
     Parse any constraints-like dictionary into automata constraints.
 
+    Each entry in `constraints` is process independently and thus
+    can be of a different type (even an automaton).
+
     Parameters
     ----------
-    constraints: Constraints Dict[str,RE] or Dict[str,str]
-        Dictionary var → RE (where RE is either string or awalipy.RatExp)
+    constraints: Constraints Dict[str,RE] or Dict[str,Aut]
+        Dictionary var → Union[RE,Aut] (where RE is either string
+        or awalipy.RatExp)
+
     Returns
     -------
     AutConstraint
@@ -186,6 +191,10 @@ def create_automata_constraints(constraints: Constraints) -> AutConstraints:
     """
     res = {}
     for var, const in constraints.items():
+        if isinstance(const, Aut):
+            res[var] = const
+            continue
+
         if isinstance(const, str):
             const = awalipy.RatExp(const)
 
