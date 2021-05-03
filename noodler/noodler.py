@@ -17,11 +17,11 @@ import awalipy
 import itertools
 
 from collections import deque
-from typing import Sequence
+from typing import Sequence, Optional
 
 # Classes
 from .core import StringEquation
-from .sequery import AutSingleSEQuery, SingleSEQuery
+from .sequery import AutSingleSEQuery, SingleSEQuery, MultiSEQuery
 # Types
 from .core import Aut, AutConstraints, SegAut
 
@@ -318,3 +318,95 @@ Constraints:
         if verbose:
             print(f"""Found {len(noodles)} non-empty noodles.
 ================================""")
+
+
+class StraightlineNoodleMachine:
+    """
+    Noodle machine that solves Straightline queries.
+
+    Solves the SSA-like equation system using noodles.
+    The system consists of k+1 equations (eq_0 ... eq_k).
+    Each equation is a level. The machine starts at the
+    last level (equation) with the initial constraints
+    given by the query. When solving a level, it creates
+    SimpleNoodler that noodlifies the level with the current
+    constraints. Each noodle for level `i` is a witness for a
+    solution for the system eq_i, eq_{i+1}, ..., eq_k.
+
+    We then propagate the learned constraints for for eq_i
+    cumulatively back to eq_{i+1} ... eq_k
+
+    Attributes
+    ----------
+    query: MultiSEQuery
+    noodlers: Sequence[Optional[SimpleNoodler]]
+        Simple noodlers for each level/equation
+    """
+
+    def __init__(self, query: MultiSEQuery):
+        self.query = query
+        self.noodlers = [None] * len(query.equations)
+
+    def solve(self) -> AutConstraints:
+        """
+        Find constraints representing a solution of `query`.
+
+        This is only correct if `query` belongs to the straight-line fragment.
+
+        Returns
+        -------
+        AutConstraints
+            Constraints representing a solution of ``self.query``.
+        """
+        level = len(self.query.equations) - 1
+        constraints = self.query.aut_constraints.copy()
+        return self._solve_rec(level, constraints)
+
+    def _solve_rec(self, level: int,
+                   constraints: AutConstraints) -> Optional[AutConstraints]:
+        """
+        Function to compute a solution recursively.
+
+        Parameters
+        ----------
+        level: int
+        constraints:
+
+        Returns
+        -------
+        AutConstraints
+            Constraints representing one solution, or None if no solution
+            exists.
+
+        Notes
+        -----
+        We could store pointers to each level to see what is the current
+        noodle under investigation in order to generate more solutions.
+        """
+        if level < 0:
+            return constraints
+        # We use switched equations. We need the form:
+        # y₁y₂y₃ = x
+        cur_query = AutSingleSEQuery(self.query.equations[level].switched,
+                                     constraints)
+        noodler = SimpleNoodler(cur_query)
+        self.noodlers[level] = noodler
+        noodles: Sequence[SingleSEQuery] = noodler.noodlify()
+
+        for noodle in noodles:
+            cur_constraints: AutConstraints = constraints.copy()
+            cur_constraints.update(noodle.constraints)
+
+            lower_constraints = self._solve_rec(level - 1,
+                                                cur_constraints)
+
+            if lower_constraints is not None:
+                # There is a solution and we have constraints ∀x_i. i<level
+                # Now we create constraints for x_{level}
+                cur_query.constraints.update(lower_constraints)
+                cur_var = cur_query.eq.right
+                lower_constraints[cur_var] = cur_query.proper_aut("left")
+
+                return lower_constraints
+
+        return None
