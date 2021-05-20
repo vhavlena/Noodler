@@ -37,3 +37,8 @@ def f1001():
 @pytest.fixture
 def p1001(f1001):
     return SmtlibParserHackAbc(f1001)
+
+
+@pytest.fixture
+def p1013():
+    return SmtlibParserHackAbc(get_bench_file(1013))

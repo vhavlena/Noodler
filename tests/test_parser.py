@@ -1,4 +1,6 @@
 import os
+from typing import Set
+
 import pytest
 
 import awalipy
@@ -6,7 +8,7 @@ import z3
 
 from noodler.core import RE, is_straightline
 from noodler.parser import smt2_to_query, SmtlibParserHackAbc, translate_for_awali
-from generate_parsers import pytest_generate_tests, f1001, p1001
+from generate_parsers import pytest_generate_tests, f1001, p1001, p1013
 
 
 def are_re_equivalent(re1: RE, re2: RE):
@@ -17,6 +19,13 @@ def are_re_equivalent(re1: RE, re2: RE):
 @pytest.fixture
 def simple_re():
     return z3.Concat(z3.Re("a"), z3.Re("b"))
+
+
+def variables_from_smt(filename) -> Set[str]:
+    with open(filename) as f:
+        lines = f.readlines()
+
+    return {l.split()[1] for l in lines if "declare-fun" in l}
 
 
 def test_smt2_to_query(f1001):
@@ -59,6 +68,9 @@ class TestParser:
         p1001.parse_query()
         assert 'literal_1' in p1001.constraints
         # assert 'literal_1' in p1001.parse_query().aut_constraints
+
+    def test_variables(self, p1013: SmtlibParserHackAbc):
+        assert p1013.variables == variables_from_smt(p1013.filename)
 
     def test_all_noreplace_files_straightline(self, noreplace_parsers: SmtlibParserHackAbc):
         query = noreplace_parsers.parse_query()
