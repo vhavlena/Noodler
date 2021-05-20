@@ -201,6 +201,8 @@ def create_automata_constraints(constraints: Constraints) -> AutConstraints:
         if not isinstance(const, RE):
             raise TypeError("constraints must be a regular expression")
 
-        res[var] = const.exp_to_aut()
+        # We use the Thompson's algorithm as the derivative-term-based one
+        # often explodes with growing alphabet.
+        res[var] = const.thompson().proper().minimal_automaton()
 
     return res
