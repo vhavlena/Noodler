@@ -6,48 +6,12 @@ import z3
 
 from noodler.core import RE, is_straightline
 from noodler.parser import smt2_to_query, SmtlibParserHackAbc, translate_for_awali
-
-SLOG_PREFIX = "slog_stranger"
-SLOG_SUFFIX = "sink.smt2"
-SLOG_DIR = "../benchmarks/slog"
-NOREPLACE_LIST = "noreplace_noor.files"
-
-
-def pytest_generate_tests(metafunc):
-    if "noreplace_parsers" in metafunc.fixturenames:
-        with open(os.path.join(SLOG_DIR, NOREPLACE_LIST)) as f:
-            files = f.read().splitlines()
-        paths = [os.path.join(SLOG_DIR, file) for file in files]
-        parsers = [SmtlibParserHackAbc(file) for file in paths]
-        metafunc.parametrize("noreplace_parsers",
-                             parsers,
-                             ids=files)
+from generate_parsers import pytest_generate_tests, f1001, p1001
 
 
 def are_re_equivalent(re1: RE, re2: RE):
     return awalipy.are_equivalent(re1.exp_to_aut(),
                                   re2.exp_to_aut())
-
-
-def get_bench_file(n):
-    if isinstance(n, str):
-        n = n.strip()
-    return os.path.join(SLOG_DIR,
-                        f"{SLOG_PREFIX}_{n}_{SLOG_SUFFIX}")
-
-
-@pytest.fixture
-def f1001():
-    return get_bench_file(1001)
-
-
-@pytest.fixture
-def p1001(f1001):
-    return SmtlibParserHackAbc(f1001)
-
-
-def get_parser(filename):
-    return SmtlibParserHackAbc(filename)
 
 
 @pytest.fixture

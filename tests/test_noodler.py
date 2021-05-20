@@ -1,8 +1,10 @@
 import awalipy
 import pytest
 
-from noodler import StringEquation, AutSingleSEQuery, SimpleNoodler, multiop
-
+from core import is_straightline
+from noodler import StringEquation, AutSingleSEQuery, SimpleNoodler, multiop, StraightlineNoodleMachine
+from generate_parsers import pytest_generate_tests
+from noodler.parser import SmtlibParserHackAbc
 
 class TestSimpleNoodler:
 
@@ -25,11 +27,11 @@ class TestSimpleNoodler:
 
     @pytest.fixture
     def simple_eq(self):
-        return StringEquation("uvw","z")
+        return StringEquation("uvw", "z")
 
     @pytest.fixture
     def repet_left_eq(self):
-        return StringEquation("uzu","w")
+        return StringEquation("uzu", "w")
 
     @pytest.fixture
     def simple_sys(self, simple_eq, acb0_constraints):
@@ -68,3 +70,12 @@ class TestSimpleNoodler:
         noodles_auts = [noodle.proper_aut("left") for noodle in noodles]
         noodles_union = multiop(noodles_auts, awalipy.union)
         assert awalipy.product(complement, noodles_union).num_useful_states() == 0
+
+
+class TestStraightlineNoodlerMachine:
+    def test_solve(self, noreplace_parsers: SmtlibParserHackAbc, capsys):
+        query = noreplace_parsers.parse_query()
+        assert is_straightline(query.equations)
+        with capsys.disabled():
+            nm = StraightlineNoodleMachine(query)
+            nm.solve()

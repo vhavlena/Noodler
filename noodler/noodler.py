@@ -17,7 +17,7 @@ import awalipy
 import itertools
 
 from collections import deque
-from typing import Sequence, Optional
+from typing import Sequence, Optional, List
 
 # Classes
 from .core import StringEquation
@@ -91,13 +91,15 @@ def noodlify_query(query: SingleSEQuery) -> Sequence[SegAut]:
     """
     left: SegAut = query.seg_aut("left")
     right: Aut = query.proper_aut("right")
+    assert left.alphabet() == right.alphabet()
     product: SegAut = eps_preserving_product(left, right, history=True)
     return noodlify(product)
 
 
 def create_unified_query(equation: StringEquation,
                          left_auts: Sequence[Aut],
-                         right_auts: Sequence[Aut]) -> AutSingleSEQuery:
+                         right_auts: Sequence[Aut]) -> \
+                                    Optional[AutSingleSEQuery]:
     """
     Create unified query from equation and automata.
 
@@ -345,7 +347,7 @@ class StraightlineNoodleMachine:
 
     def __init__(self, query: MultiSEQuery):
         self.query = query
-        self.noodlers = [None] * len(query.equations)
+        self.noodlers: List[Optional[SimpleNoodler]] = [None] * len(query.equations)
 
     def solve(self) -> AutConstraints:
         """
@@ -383,6 +385,7 @@ class StraightlineNoodleMachine:
         We could store pointers to each level to see what is the current
         noodle under investigation in order to generate more solutions.
         """
+        # print([len(n.noodles) for n in self.noodlers if n is not None])
         if level < 0:
             return constraints
         # We use switched equations. We need the form:
@@ -393,7 +396,11 @@ class StraightlineNoodleMachine:
         self.noodlers[level] = noodler
         noodles: Sequence[SingleSEQuery] = noodler.noodlify()
 
+        # c = 0
+
         for noodle in noodles:
+            # c += 1
+            # print(f"{level}: {c}/{len(noodles)}")
             cur_constraints: AutConstraints = constraints.copy()
             cur_constraints.update(noodle.constraints)
 
@@ -404,7 +411,7 @@ class StraightlineNoodleMachine:
                 # There is a solution and we have constraints ∀x_i. i<level
                 # Now we create constraints for x_{level}
                 cur_query.constraints.update(lower_constraints)
-                cur_var = cur_query.eq.right
+                cur_var = cur_query.eq.right[0]
                 lower_constraints[cur_var] = cur_query.proper_aut("left")
 
                 return lower_constraints

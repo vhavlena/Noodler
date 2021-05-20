@@ -174,6 +174,8 @@ def eps_preserving_product(aut_l: SegAut,
     """
     names = opts.get("history", False)
 
+    assert aut_l.alphabet() == aut_r.alphabet()
+
     state_map = {}
     alphabet = aut_l.alphabet()
     new_aut = awalipy.make_automaton(alphabet)

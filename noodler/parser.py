@@ -45,7 +45,8 @@ def translate_for_awali(string):
         "}": "\x11",
         "*": "\x10",
         ".": "\x09",
-        "\ufffd": "\x08",
+        "\\": "\x08",
+        "\ufffd": "\x07",
     }
     return string.translate(str.maketrans(tokens))
 
@@ -169,9 +170,10 @@ class SmtlibParser:
         if ref.sort().kind() == z3.Z3_SEQ_SORT:
             if is_string_constant(ref):
                 self._extract_letters(ref)
+                return
             elif is_string_variable(ref):
                 self.variables.add(ref.as_string())
-            return
+                return
 
         # Regular expressions or equation or re-query
         for child in ref.children():
@@ -369,6 +371,10 @@ class SmtlibParser:
                 z3_operator, name = ref.decl().kind(), ref.decl().name()
                 raise NotImplementedError(f"Z3 operator {z3_operator} ({name}) is "
                                           f"not implemented yet!")
+
+        sigma_star = awalipy_allchar(self.alphabet_str).star()
+        for var in self.variables:
+            self.constraints.setdefault(var, sigma_star)
 
         return MultiSEQuery(self.equations, self.constraints)
 
