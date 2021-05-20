@@ -1,5 +1,6 @@
 import awalipy
 import pytest
+import subprocess
 
 from core import is_straightline
 from noodler import StringEquation, AutSingleSEQuery, SimpleNoodler, multiop, StraightlineNoodleMachine
@@ -72,10 +73,21 @@ class TestSimpleNoodler:
         assert awalipy.product(complement, noodles_union).num_useful_states() == 0
 
 
+def run_z3(filename, timeout=10):
+    z3_res = subprocess.run(["z3", filename, f"-T:{timeout}"], capture_output=True, text=True)
+    return z3_res.stdout.strip()
+
+
 class TestStraightlineNoodlerMachine:
-    def test_solve(self, noreplace_parsers: SmtlibParserHackAbc, capsys):
+    def test_sat(self, noreplace_parsers: SmtlibParserHackAbc):
         query = noreplace_parsers.parse_query()
         assert is_straightline(query.equations)
-        with capsys.disabled():
-            nm = StraightlineNoodleMachine(query)
-            nm.solve()
+        nm = StraightlineNoodleMachine(query)
+        res = nm.is_sat()
+        print(res)
+
+        z3_res = run_z3(noreplace_parsers.filename)
+        print(z3_res)
+        if z3_res != "timeout":
+            assert (z3_res == "sat") == res
+

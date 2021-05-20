@@ -349,6 +349,45 @@ class StraightlineNoodleMachine:
         self.query = query
         self.noodlers: List[Optional[SimpleNoodler]] = [None] * len(query.equations)
 
+    def is_sat(self) -> bool:
+        """
+        Decide satisfiability of the `query`.
+
+        This is only correct if `query` belongs to the straight-line fragment.
+
+        Returns
+        -------
+        True if query is satisfiable, False otherwise.
+        """
+        def _solve_rec(level: int, constraints: AutConstraints):
+            # print([len(n.noodles) for n in self.noodlers if n is not None])
+            if level < 0:
+                return True
+            # We use switched equations. We need the form:
+            # y₁y₂y₃ = x
+            cur_query = AutSingleSEQuery(self.query.equations[level].switched,
+                                         constraints)
+            noodler = SimpleNoodler(cur_query)
+            self.noodlers[level] = noodler
+            noodles: Sequence[SingleSEQuery] = noodler.noodlify()
+
+            # c = 0
+
+            for noodle in noodles:
+                # c += 1
+                # print(f"{level}: {c}/{len(noodles)}")
+                cur_constraints: AutConstraints = constraints.copy()
+                cur_constraints.update(noodle.constraints)
+
+                if _solve_rec(level - 1, cur_constraints):
+                    return True
+
+            return False
+
+        level = len(self.query.equations) - 1
+        constraints = self.query.aut_constraints.copy()
+        return _solve_rec(level, constraints)
+
     def solve(self) -> AutConstraints:
         """
         Find constraints representing a solution of `query`.
