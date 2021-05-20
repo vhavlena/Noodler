@@ -4,13 +4,13 @@ import pytest
 import awalipy
 import z3
 
-from noodler.core import RE
+from noodler.core import RE, is_straightline
 from noodler.parser import smt2_to_query, SmtlibParserHackAbc, translate_for_awali
 
 SLOG_PREFIX = "slog_stranger"
 SLOG_SUFFIX = "sink.smt2"
 SLOG_DIR = "../benchmarks/slog"
-NOREPLACE_LIST = "noreplace.files"
+NOREPLACE_LIST = "noreplace_noor.files"
 
 
 def pytest_generate_tests(metafunc):
@@ -59,12 +59,13 @@ def test_smt2_to_query(f1001):
     smt2_to_query(f1001)
 
 
-# def test_z3_re_to_awali(simple_re):
-#     assert are_re_equivalent(awalipy.RatExp("ab"),
-#                              z3_re_to_awali(simple_re, "ab"))
-
-
 class TestParser:
+    # @pytest.fixture(scope="session")
+    # def filenames_file_h(self):
+    #     f_h = open("../benchmarks/slog/noreplace_noor.files", "w")
+    #     yield f_h
+    #     f_h.close()
+
     def test_alphabet_1001(self, p1001):
         # From equation
         res = {'<', 'b', 'r', ' ', '/', '>'}
@@ -81,7 +82,7 @@ class TestParser:
         p1001.z3_re_to_awali(re1)
 
     def test_process_re_constraint_1001(self, p1001):
-        constr = p1001.process_re_constraint(p1001.assertions[1])
+        constr = p1001.parse_re_constraint(p1001.assertions[1])
         re = constr['literal_1']
         assert re.is_valid()
 
@@ -95,6 +96,7 @@ class TestParser:
         assert 'literal_1' in p1001.constraints
         # assert 'literal_1' in p1001.parse_query().aut_constraints
 
-    def test_all_noreplace_files(self, noreplace_parsers: SmtlibParserHackAbc):
-        noreplace_parsers.parse_query()
-        assert True
+    def test_all_noreplace_files_straightline(self, noreplace_parsers: SmtlibParserHackAbc):
+        query = noreplace_parsers.parse_query()
+        # filenames_file_h.write(os.path.basename(noreplace_parsers.filename)+"\n")
+        assert is_straightline(query.equations)

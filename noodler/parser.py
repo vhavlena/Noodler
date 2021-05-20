@@ -1,3 +1,4 @@
+import itertools
 from typing import Collection, Optional, Union
 
 from .core import StringEquation, REConstraints, RE
@@ -85,6 +86,44 @@ def is_inre(ref):
     return ref.decl().kind() == z3.Z3_OP_SEQ_IN_RE
 
 
+def is_assignment(ref: z3.BoolRef) -> bool:
+    """
+    Detect assignment.
+
+    Assignment is an equation of the form `var = str_const`.
+
+    Parameters
+    ----------
+    ref: z3 reference
+
+    Returns
+    -------
+    True if `ref` is an assignment.
+    """
+    if ref.decl().kind() != z3.Z3_OP_EQ:
+        return False
+
+    left, right = ref.children()
+    return is_string_variable(left) and is_string_constant(right)
+
+
+def is_re_constraint(ref: z3.BoolRef) -> bool:
+    """
+    Detect RE constraints.
+
+    RE constraint might be an in_RE operators or assignments.
+
+    Parameters
+    ----------
+    ref: z3.BoolRef
+
+    Returns
+    -------
+    True if ref describes a RE constraint, False otherwise.
+    """
+    return is_inre(ref) or is_assignment(ref)
+
+
 class SmtlibParser:
     """
     Convert `.smt2` files into Queries.
@@ -95,13 +134,25 @@ class SmtlibParser:
         self.assertions: z3.z3.AstVector = z3.parse_smt2_file(filename)
         self.alphabet: Collection[str] = set()
         self.variables: Collection[str] = set()
+
         self.constraints: REConstraints = dict()
+        self.equations: Collection[StringEquation] = []
 
         # Gather alphabet
         for ref in self.assertions:
             self._gather_symbols(ref)
 
         self.alphabet_str: str = "".join(self.alphabet) + NONSPEC_SYMBOL
+
+        # Fresh variables
+        self.next_variable_id = 0
+
+    def fresh_variable(self):
+        prefix = 'noodler_var_'
+        self.next_variable_id += 1
+        new_var = f'{prefix}{self.next_variable_id-1}'
+        self.variables.add(new_var)
+        return new_var
 
     def _gather_symbols(self,
                         ref: Union[z3.ReRef, z3.SeqRef, z3.BoolRef]):
@@ -203,19 +254,49 @@ class SmtlibParser:
         """
         return awalipy.RatExp(string, alphabet=self.alphabet_str)
 
-    def process_equation(self, ref: z3.BoolRef) -> StringEquation:
-        pass
+    def parse_equation(self, ref: z3.BoolRef) -> StringEquation:
+        left, right = ref.children()
+        assert is_string_variable(left)
+        assert right.sort_kind() == z3.Z3_SEQ_SORT
 
-    def process_re_constraint(self, ref: z3.BoolRef) -> REConstraints:
+        # # Equation of the form `variable = str_constant` is
+        # # in fact a variable constraint.
+        # if is_string_constant(right):
+        #     re = self.create_awali_re(right.as_string())
+
+        res_left = [left.as_string()]
+
+        def z3_concat_to_var_list(z3_ref: z3.SeqRef) -> Collection[str]:
+            """
+            Convert concatenation of string variables into list of vars.
+
+            Parameters
+            ----------
+            z3_ref
+
+            Returns
+            -------
+            List of variables from Z3_ref
+            """
+            if is_string_variable(z3_ref):
+                return [z3_ref.as_string()]
+            children = [z3_concat_to_var_list(child) for child in z3_ref.children()]
+            return itertools.chain(*children)
+
+        res_right = z3_concat_to_var_list(right)
+        return StringEquation(res_left, list(res_right))
+
+    def parse_re_constraint(self, ref: z3.BoolRef) -> REConstraints:
         """
         Translate one regular constraint into REConstraints dict.
 
         The reference should point to a Z3_OP_SEQ_IN_RE operator where
-        the left side is a variable.
+        the left side is a variable, or to an assignment (Z3_OP_EQ operator)
+        with left side a string variable and right side a string constant.
 
         Parameters
         ----------
-        ref: z3.BoolRef to a in_re operator
+        ref: z3.BoolRef to a in_re operator or to an assignment
             constraint to translate
 
         Returns
@@ -223,21 +304,74 @@ class SmtlibParser:
         REConstraint
             Mapping `var -> RE`
         """
-        assert ref.decl().kind() == z3.Z3_OP_SEQ_IN_RE
+        assert is_re_constraint(ref)
         left, right = ref.children()
         assert is_string_variable(left)
         assert left.as_string() in self.variables
 
-        return {left.as_string() : self.z3_re_to_awali(right)}
+        return {left.as_string(): self.z3_re_to_awali(right)}
+
+    def process_assignment(self, ref: z3.BoolRef) -> None:
+        """
+        Create a RE constraint or a fresh equation for literal assignment.
+
+        Assignment is `var = str_cons`.
+        If there is no RE constraint for `var`, we create one of the form
+        `var → RE(str_cons)`. Otherwise we introduce a fresh variable (`x`)
+        and create a new equation `var = x`, and introduce a constraint
+        `x → RE(str_cons)`.
+
+        Parameters
+        ----------
+        ref: z3.BoolRef of the form `var = string_const`
+
+        Returns
+        -------
+        None
+        """
+        assert is_assignment(ref)
+        var, const = (c.as_string() for c in ref.children())
+        const_re: RE = self.create_awali_re(const)
+
+        if var not in self.constraints:
+            self.constraints[var] = const_re
+        else:
+            # Introduce a fresh variable and a new equation
+            new_var = self.fresh_variable()
+            self.constraints[new_var] = const_re
+            self.equations.append(StringEquation([var],[new_var]))
 
     def parse_query(self) -> MultiSEQuery:
-        # TODO equations
         # TODO might be or of equations
+
         for ref in self.assertions:
             if is_inre(ref):
-                res = self.process_re_constraint(ref)
+                res = self.parse_re_constraint(ref)
                 assert res.keys().isdisjoint(self.constraints)
                 self.constraints.update(res)
+
+        # We need first all in_re constraints before processing assignments
+        for ref in self.assertions:
+            if is_inre(ref):
+                continue
+
+            if is_equation(ref) and not is_assignment(ref):
+                equation = self.parse_equation(ref)
+                self.equations.append(equation)
+
+            elif is_assignment(ref):
+                # Assignments are only stored for later processing
+                self.process_assignment(ref)
+
+            # The rest should be `or`
+            else:
+                # assert ref.decl().kind() == z3.Z3_OP_OR
+                z3_operator, name = ref.decl().kind(), ref.decl().name()
+                raise NotImplementedError(f"Z3 operator {z3_operator} ({name}) is "
+                                          f"not implemented yet!")
+
+        return MultiSEQuery(self.equations, self.constraints)
+
 
 class SmtlibParserHackAbc(SmtlibParser):
     """
