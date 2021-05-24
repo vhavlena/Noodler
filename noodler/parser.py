@@ -397,11 +397,3 @@ class SmtlibParserHackAbc(SmtlibParser):
         orig_string = ref.as_string()
         fixed_string = translate_for_awali(orig_string)
         self.alphabet.update(set(fixed_string))
-
-
-def smt2_to_query(filename: str) -> MultiSEQuery:
-    ast_vect: z3.z3.AstVector = z3.parse_smt2_file(filename)
-
-    for ast in ast_vect:
-        assert isinstance(ast, z3.BoolRef)
-    pass

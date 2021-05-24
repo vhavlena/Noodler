@@ -1,12 +1,37 @@
+"""
+Generate parsers of smt2 files for test cases.
+
+The function ``pytest_generate_tests`` can be imported in a test file
+to provide a parametrized fixture `noreplace_parsers` that allows to execute
+a test on each filename stored in ``NOREPLACE_LIST`` in the ``SLOG_DIR``.
+The intended use is as follows:
+
+>>> from generate_parsers import pytest_generate_tests
+>>>
+>>> def test_func_on_parsed_smt(noreplace_parsers):
+>>>   func(noreplace_parsers)
+
+The test-case above (function `func`) will be executed as a seperate
+test for each benchmark from the ``NOREPLACE_LIST`` file.
+
+Fixtures ``p1001`` and ``p1013`` contain 2 concrete instances of parsers
+for benchmarks with ids `1001` and `1013`.
+"""
+
 import os
 import pytest
 
-from noodler.parser import SmtlibParserHackAbc
+from noodler import SmtlibParserHackAbc
 
+# Directory with straight-line fragment benchmarks (SLOG)
+SLOG_DIR = "../benchmarks/slog"
+
+# File with all slog-benchmarks without `replace` and `or` operators.
 NOREPLACE_LIST = "noreplace_noor.files"
+
+# Parts of SLOG-benchmarks names
 SLOG_PREFIX = "slog_stranger"
 SLOG_SUFFIX = "sink.smt2"
-SLOG_DIR = "../benchmarks/slog"
 
 
 def pytest_generate_tests(metafunc):

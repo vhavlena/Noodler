@@ -2,10 +2,13 @@ import awalipy
 import pytest
 import subprocess
 
-from core import is_straightline
-from noodler import StringEquation, AutSingleSEQuery, SimpleNoodler, multiop, StraightlineNoodleMachine
+# Imports from Noodler
+from noodler import StringEquation, AutSingleSEQuery, SimpleNoodler, is_straightline, multiop, StraightlineNoodleMachine
+from noodler import SmtlibParserHackAbc
+
+# Import test cases
 from generate_parsers import pytest_generate_tests
-from noodler.parser import SmtlibParserHackAbc
+
 
 class TestSimpleNoodler:
 
@@ -80,6 +83,12 @@ def run_z3(filename, timeout=10):
 
 class TestStraightlineNoodlerMachine:
     def test_sat(self, noreplace_parsers: SmtlibParserHackAbc):
+        """
+        Tests equivalence of results given by noodler and z3.
+
+        This runs several minutes. By default, Z3 runs with TO
+        of 10s. We don't restrict noodler on time.
+        """
         query = noreplace_parsers.parse_query()
         assert is_straightline(query.equations)
         nm = StraightlineNoodleMachine(query)
