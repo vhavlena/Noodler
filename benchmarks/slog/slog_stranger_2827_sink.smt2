@@ -37,6 +37,6 @@ String Analysis via Automata Manipulation with Logic Circuit Representation. CAV
 (assert (= x_14 (str.++ sigmaStar_13 literal_11)))
 (assert (= literal_2 "\x66\x69\x6c\x65\x2e\x70\x68\x70"))
 (assert (or (= x_23 x_10) (= x_23 literal_2) (= x_23 sigmaStar_20) (= x_23 x_14) (= x_23 x_6)))
-(assert (str.in.re x_23 (re.++ (re.* re.allchar) (re.++ (str.to.re "\x2f\x65\x76\x69\x6c") (re.* re.allchar)))))
+(assert (str.in_re x_23 (re.++ (re.* re.allchar) (re.++ (str.to_re "\x2f\x65\x76\x69\x6c") (re.* re.allchar)))))
 (check-sat)
 (exit)

@@ -1,1 +1,1 @@
-sed -e 's/in-re/in.re/' -e 's/to-re/to.re/' -i.bak *.smt2
+sed -e 's/in-re/in_re/' -e 's/to-re/to_re/' -i.bak *.smt2
