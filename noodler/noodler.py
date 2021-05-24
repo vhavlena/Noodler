@@ -1,17 +1,15 @@
 """
 Classes
 -------
-AutSingleSEQuery
-    query of 1 string equation with regular constraints on
-    variables given by automata
-RESingleSEQuery
-    query with constraints represented by regular expressions.
 SimpleNoodler
     Creates unified noodles for AutSingleSEQuery instances. This is
     enough for simple equations (all variables that occur the
     right-hand side of the equation are unique).
 QueueNoodler
     Seek solutions using noodlification for non-simple equations.
+
+StraightlineNoodleMachine
+    Solves Straight-line MiultiSEQueries with proved termination.
 """
 import awalipy
 import itertools
@@ -343,6 +341,14 @@ class StraightlineNoodleMachine:
     query: MultiSEQuery
     noodlers: Sequence[Optional[SimpleNoodler]]
         Simple noodlers for each level/equation
+
+    Functions
+    ---------
+    is_sat: -> Bool
+        Return True if `query` is SAT
+    solve: -> AutConstraints
+        If `query` is SAT, return Automata constraints that can be used
+        to find a concrete solution.
     """
 
     def __init__(self, query: MultiSEQuery):

@@ -1,6 +1,17 @@
 """
 Contains various implementations of queries build upon
 string equations (SE) or upon systems of SE.
+
+SingleSEQuery
+    Abstract class for queries
+AutSingleSEQuery
+    query of 1 string equation with regular constraints on
+    variables given by automata
+RESingleSEQuery
+    query with constraints represented by regular expressions.
+MultiSEQuery
+    system (sequence) of equations with constraints for
+    variables.
 """
 from typing import Sequence, Dict, Collection, Optional
 

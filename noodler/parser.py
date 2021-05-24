@@ -1,3 +1,23 @@
+"""
+Parse smtlib (smt2) files with string constraints.
+
+Relies on parser in Z3 and converts assertions into queries.
+
+Classes:
+--------
+SmtlibParser
+    Parses smt2 files and creates corresponding queries.
+    The current implementation often fails due to Awali's
+    limited support of rich alphabets. If Awali is changed
+    for another library, this should work well (with corresponding
+    adjustments).
+
+SmtlibParserHackAbc
+    Adjust SmtlibParser with translations of characters that
+    are not compatible with Awali (see ``translate_for_awali``)
+    into ASCI-control sequences.
+"""
+
 import itertools
 from typing import Collection, Optional, Union
 
@@ -23,7 +43,7 @@ def awalipy_ratexp_plus(re: RE):
     """
     return awalipy.RatExp.mult(re, awalipy.RatExp.star(re))
 
-
+# Symbol used to represent charactest not included in alphabet of Awali REs
 NONSPEC_SYMBOL = u"\x1A"
 
 
@@ -148,7 +168,18 @@ class SmtlibParser:
         # Fresh variables
         self.next_variable_id = 0
 
-    def fresh_variable(self):
+    def fresh_variable(self) -> str:
+        """
+        Introduce and return (name of) a fresh variable.
+
+        Creates a new variable, adds it into `variables`, and
+        ensures that the same name will not be used by subsequent
+        calls.
+
+        Returns
+        -------
+        Name of a fresh variable.
+        """
         prefix = 'noodler_var_'
         self.next_variable_id += 1
         new_var = f'{prefix}{self.next_variable_id-1}'
@@ -382,7 +413,9 @@ class SmtlibParser:
 class SmtlibParserHackAbc(SmtlibParser):
     """
     Extend `SmtlibParser` with encoding of `<`,`>`, ` `, and
-    non-asci characters using fresh ASCI symbols.
+    other problematic characters using fresh ASCI symbols.
+
+    This is ensured mainly by calls to ``translate_for_awali``
     """
 
     def __init__(self, filename: str):
