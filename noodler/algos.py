@@ -177,40 +177,54 @@ def eps_preserving_product(aut_l: SegAut,
     assert aut_l.alphabet() == aut_r.alphabet()
 
     state_map = {}
+    todo = []
+
     alphabet = aut_l.alphabet()
     new_aut = awalipy.make_automaton(alphabet)
     new_aut.allow_eps_transition_here()
 
-    # Create states
-    for s in aut_l.states():
-        for t in aut_r.states():
-            if names:
-                st = new_aut.add_state(f"{aut_l.get_state_name(s)} | {aut_r.get_state_name(t)}")
-            else:
-                st = new_aut.add_state()
-            state_map[s, t] = st
-            if aut_l.is_final(s) and aut_r.is_final(t):
-                new_aut.set_final(st)
-            if aut_l.is_initial(s) and aut_r.is_initial(t):
-                new_aut.set_initial(st)
+    def get_state(l: int, r: int) -> int:
+        "Return id of (l,r) in new_aut and create it if needed."
+        # Already created
+        if (l, r) in state_map:
+            return state_map[l, r]
 
-    for sl in aut_l.states():
-        for sr in aut_r.states():
-            for a in alphabet:
-                for tl in aut_l.outgoing(sl, a):
-                    dst_l = aut_l.dst_of(tl)
-                    for tr in aut_r.outgoing(sr, a):
-                        dst_r = aut_r.dst_of(tr)
-                        new_aut.set_transition(state_map[sl, sr],
-                                               state_map[dst_l, dst_r],
-                                               a)
+        # Create a new state
+        if names:
+            new_s = new_aut.add_state(f"{aut_l.get_state_name(l)} | {aut_r.get_state_name(r)}")
+        else:
+            new_s = new_aut.add_state()
 
-            for tl in aut_l.outgoing(sl, "\\e"):
+        state_map[l, r] = new_s
+        todo.append((new_s, l, r))
+
+        # Set initial and final states
+        if aut_l.is_final(l) and aut_r.is_final(r):
+            new_aut.set_final(new_s)
+        if aut_l.is_initial(l) and aut_r.is_initial(r):
+            new_aut.set_initial(new_s)
+
+        return new_s
+
+    for left in aut_l.initial_states():
+        for right in aut_r.initial_states():
+            get_state(left, right)
+
+    while len(todo) > 0:
+        s, left, right = todo.pop()
+        for a in alphabet:
+            for tl in aut_l.outgoing(left, a):
                 dst_l = aut_l.dst_of(tl)
-                new_aut.add_eps_transition(state_map[sl, sr], state_map[dst_l, sr])
-    new_aut.trim_here()
+                for tr in aut_r.outgoing(right, a):
+                    dst_r = aut_r.dst_of(tr)
+                    new_aut.set_transition(s,
+                                           get_state(dst_l, dst_r),
+                                           a)
+        for tl in aut_l.outgoing(left, "\\e"):
+            dst_l = aut_l.dst_of(tl)
+            new_aut.add_eps_transition(s, get_state(dst_l, right))
 
-    return new_aut
+    return new_aut.trim()
 
 
 def eps_segmentation(aut: SegAut) -> Dict[int, Sequence[TransID]]:
