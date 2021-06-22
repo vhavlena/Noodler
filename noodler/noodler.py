@@ -336,13 +336,19 @@ class StraightlineNoodleMachine:
     We then propagate the learned constraints for for eq_i
     cumulatively back to eq_{i+1} ... eq_k
 
+    `propagate_constraints` can be used to restrict the languages
+    of the constraints simply based on equations eq_0 ... eq_k.
+    if eq_0 is `x_0 = y_1 y_2 y_3`, and the constraints are stored
+    in `C` then we update the constraint of `x_0` to
+      ``C[x_0] ∩ (C[y_1].C[y_2].C[y_3])``.
+
     Attributes
     ----------
     query: MultiSEQuery
     noodlers: Sequence[Optional[SimpleNoodler]]
         Simple noodlers for each level/equation
 
-    Functions
+    Methods
     ---------
     is_sat: -> Bool
         Return True if `query` is SAT
@@ -355,17 +361,51 @@ class StraightlineNoodleMachine:
         self.query = query
         self.noodlers: List[Optional[SimpleNoodler]] = [None] * len(query.equations)
 
-    def is_sat(self) -> bool:
+    def propagate_contraints(self, constraints: Optional[AutConstraints] = None) -> None:
+        # TODO check empty!
+        """
+        Propagate constraints directly from equations.
+
+        Update constraints for the left sides of equations 0 ... k
+        to intersection of the current constraints and the automaton
+        for the right-hand side of the equation.
+
+        Parameters
+        ----------
+        constraints: AutConstraints, optional
+            Dictionary with constraints to use (and update)
+        """
+        if constraints is None:
+            constraints = self.query.aut_constraints
+        for eq in self.query.equations:
+            query = AutSingleSEQuery(eq, constraints)
+            left_var = eq.left[0]
+            current_constr = constraints[left_var]
+            new_constr = awalipy.product(current_constr,
+                                         query.proper_aut("right", minimize=False))
+            constraints[left_var] = new_constr
+
+    def is_sat(self, bidirectional: bool = False) -> bool:
         """
         Decide satisfiability of the `query`.
 
         This is only correct if `query` belongs to the straight-line fragment.
 
+        Parameters
+        ----------
+        bidirectional: bool, default False
+            Restricts constraints in both directions (independently) and check
+            their intersection at each level. The main direction is from the end
+            of the chain to the beginning (equations k → 0). The addition is the
+            other direction (0 → k) with constraints build for x_i directly from
+            the equation x_i = y₀y₁… with the y-vars having index lower then i.
+
         Returns
         -------
         True if query is satisfiable, False otherwise.
         """
-        def _solve_rec(level: int, constraints: AutConstraints):
+        def _solve_rec(level: int, constraints: AutConstraints,
+                       fwd_constraints: AutConstraints = None):
             # print([len(n.noodles) for n in self.noodlers if n is not None])
             if level < 0:
                 return True
@@ -373,6 +413,16 @@ class StraightlineNoodleMachine:
             # y₁y₂y₃ = x
             cur_query = AutSingleSEQuery(self.query.equations[level].switched,
                                          constraints)
+
+            # For bidirectional mode check whether x_i (left side of eq) has a
+            # solution in both directions.
+            if fwd_constraints is not None:
+                assert len(cur_query.eq.right) == 1
+                var = cur_query.eq.right[0]
+                product: Aut = awalipy.product(constraints[var], fwd_constraints[var])
+                if product.num_useful_states() == 0:
+                    return False
+
             noodler = SimpleNoodler(cur_query)
             self.noodlers[level] = noodler
             noodles: Sequence[SingleSEQuery] = noodler.noodlify()
@@ -380,6 +430,15 @@ class StraightlineNoodleMachine:
             # c = 0
 
             for noodle in noodles:
+                # In bidirectional mode check that the unified constraints for each
+                # variable from right-hand side of the original equation (left in switched)
+                # is in agreement with the forward constraints.
+                if fwd_constraints is not None:
+                    for var in cur_query.eq.left:
+                        product: Aut = awalipy.product(noodle.constraints[var], fwd_constraints[var])
+                        if product.num_useful_states() == 0:
+                            continue
+
                 # c += 1
                 # print(f"{level}: {c}/{len(noodles)}")
                 cur_constraints: AutConstraints = constraints.copy()
@@ -390,9 +449,16 @@ class StraightlineNoodleMachine:
 
             return False
 
-        level = len(self.query.equations) - 1
-        constraints = self.query.aut_constraints.copy()
-        return _solve_rec(level, constraints)
+        if bidirectional:
+            fwd_constr = self.query.aut_constraints.copy()
+            self.propagate_contraints(fwd_constr)
+            for c in fwd_constr.values():
+                if c.num_useful_states() == 0:
+                    return False
+
+        lvl = len(self.query.equations) - 1
+        constr = self.query.aut_constraints.copy()
+        return _solve_rec(lvl, constr)
 
     def solve(self) -> AutConstraints:
         """
