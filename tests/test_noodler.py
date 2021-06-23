@@ -7,7 +7,7 @@ from noodler import StringEquation, AutSingleSEQuery, SimpleNoodler, is_straight
 from noodler import SmtlibParserHackAbc
 
 # Import test cases
-from generate_parsers import pytest_generate_tests
+from generate_parsers import pytest_generate_tests, long
 
 
 class TestSimpleNoodler:
@@ -92,11 +92,17 @@ class TestStraightlineNoodlerMachine:
         query = noreplace_parsers.parse_query()
         assert is_straightline(query.equations)
         nm = StraightlineNoodleMachine(query)
-        res = nm.is_sat()
+        res = nm.is_sat(bidirectional=False)
         print(res)
 
         z3_res = run_z3(noreplace_parsers.filename)
         print(z3_res)
         if z3_res != "timeout":
             assert (z3_res == "sat") == res
+
+    def test_long_run(self, long):
+        query = long.parse_query()
+        assert is_straightline(query.equations)
+        nm = StraightlineNoodleMachine(query)
+        res = nm.is_sat(bidirectional=False)
 
