@@ -23,8 +23,7 @@ from .sequery import AutSingleSEQuery, SingleSEQuery, MultiSEQuery
 # Types
 from .core import Aut, AutConstraints, SegAut
 
-from .algos import eps_preserving_product, \
-    eps_segmentation, multiop, split_segment_aut
+from .algos import eps_preserving_product, eps_segmentation, multiop, single_final_init, split_segment_aut
 
 
 def noodlify(aut: SegAut,

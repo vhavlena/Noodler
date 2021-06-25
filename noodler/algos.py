@@ -317,3 +317,38 @@ def split_segment_aut(aut: SegAut) -> Sequence[Aut]:
             # aut.del_transition(tr)
 
     return [seg.trim().proper() for seg in segments]
+
+
+def single_final_init(aut: Aut) -> None:
+    """
+    Restricts the number of initial and final states to at most 1.
+
+    Parameters
+    ----------
+    aut: Aut
+
+    Returns
+    -------
+    None
+    """
+    if aut.num_initials() > 1:
+        init = aut.add_state()
+        for s in aut.initial_states():
+            for a in aut.alphabet():
+                for tr in aut.outgoing(s, a):
+                    aut.set_transition(init,
+                                       aut.dst_of(tr),
+                                       a)
+            aut.unset_initial(s)
+        aut.set_initial(init)
+
+    if aut.num_finals() > 1:
+        final = aut.add_state()
+        for s in aut.final_states():
+            for a in aut.alphabet():
+                for tr in aut.incoming(s, a):
+                    aut.set_transition(aut.src_of(tr),
+                                       final,
+                                       a)
+            aut.unset_final(s)
+        aut.set_final(final)

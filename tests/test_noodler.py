@@ -5,6 +5,7 @@ import subprocess
 # Imports from Noodler
 from noodler import StringEquation, AutSingleSEQuery, SimpleNoodler, is_straightline, multiop, StraightlineNoodleMachine
 from noodler import SmtlibParserHackAbc
+from noodler.algos import single_final_init
 
 # Import test cases
 from generate_parsers import pytest_generate_tests, long
