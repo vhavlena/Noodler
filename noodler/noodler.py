@@ -443,7 +443,9 @@ class StraightlineNoodleMachine:
                             continue
                 if verbose:
                     noodle_c += 1
-                    print(f"{level}: {noodle_c}/{len(noodles)}")
+                    global counter
+                    counter += 1
+                    print(f"{counter} noodles explored; lvl {level}; noodle: {noodle_c}/{len(noodles)}")
                 cur_constraints: AutConstraints = constraints.copy()
                 cur_constraints.update(noodle.constraints)
 
@@ -451,6 +453,17 @@ class StraightlineNoodleMachine:
                     return True
 
             return False
+
+        if verbose:
+            global counter
+            counter = 0
+            print(f"====EQUATIONS====")
+            for i, eq in enumerate(self.query.equations):
+                print(f"{i}: {eq}")
+            print("====Constraints` sizes====")
+            for var, aut in self.query.aut_constraints.items():
+                print(f"{var}: {aut.num_useful_states()} states, {aut.num_finals()} final")
+            print("====RUN====")
 
         for c in self.query.aut_constraints.values():
             if c.num_useful_states() == 0:

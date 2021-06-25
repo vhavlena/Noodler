@@ -101,9 +101,28 @@ class TestStraightlineNoodlerMachine:
         if z3_res != "timeout":
             assert (z3_res == "sat") == res
 
+    def test_sat_bidi(self, noreplace_parsers: SmtlibParserHackAbc):
+        """
+        Tests equivalence of results given by noodler and z3.
+
+        This runs several minutes. By default, Z3 runs with TO
+        of 10s. We don't restrict noodler on time.
+        """
+        query = noreplace_parsers.parse_query()
+        assert is_straightline(query.equations)
+        nm = StraightlineNoodleMachine(query)
+        res = nm.is_sat(bidirectional=True)
+        print(res)
+
+        z3_res = run_z3(noreplace_parsers.filename)
+        print(z3_res)
+        if z3_res != "timeout":
+            assert (z3_res == "sat") == res
+
     def test_long_run(self, long):
         query = long.parse_query()
         assert is_straightline(query.equations)
         nm = StraightlineNoodleMachine(query)
-        res = nm.is_sat(bidirectional=False)
+        res = nm.is_sat(bidirectional=True, verbose=True)
+        print(res)
 
