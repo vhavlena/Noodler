@@ -448,6 +448,10 @@ class StraightlineNoodleMachine:
 
             return False
 
+        for c in self.query.aut_constraints.values():
+            if c.num_useful_states() == 0:
+                return False
+
         if bidirectional:
             fwd_constr = self.query.aut_constraints.copy()
             self.propagate_contraints(fwd_constr)
