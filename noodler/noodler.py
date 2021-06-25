@@ -403,7 +403,7 @@ class StraightlineNoodleMachine:
         -------
         True if query is satisfiable, False otherwise.
         """
-        def _solve_rec(level: int, constraints: AutConstraints,
+        def _is_sat_rec(level: int, constraints: AutConstraints,
                        fwd_constraints: AutConstraints = None):
             # print([len(n.noodles) for n in self.noodlers if n is not None])
             if level < 0:
@@ -443,7 +443,7 @@ class StraightlineNoodleMachine:
                 cur_constraints: AutConstraints = constraints.copy()
                 cur_constraints.update(noodle.constraints)
 
-                if _solve_rec(level - 1, cur_constraints):
+                if _is_sat_rec(level - 1, cur_constraints):
                     return True
 
             return False
@@ -461,7 +461,7 @@ class StraightlineNoodleMachine:
 
         lvl = len(self.query.equations) - 1
         constr = self.query.aut_constraints.copy()
-        return _solve_rec(lvl, constr)
+        return _is_sat_rec(lvl, constr)
 
     def solve(self) -> AutConstraints:
         """
