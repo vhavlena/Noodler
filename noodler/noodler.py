@@ -467,6 +467,76 @@ class StraightlineNoodleMachine:
         constr = self.query.aut_constraints.copy()
         return _is_sat_rec(lvl, constr)
 
+    def hybrid_sat(self) -> bool:
+        """
+        Runs propagate constraints for each new noodle.
+
+        For each noodle, first propagate again constraints in the forward
+        direction and check if all make sense. This can conclude unsat for
+        the noodle sooner, before recurse into deeper levels.
+
+        # TODO Currently all constraints are recomputed. Recompute just part?
+
+        Returns
+        -------
+        True if query is satisfiable, False otherwise.
+        """
+        def _is_sat_rec(level: int, constraints: AutConstraints,
+                       fwd_constraints: AutConstraints = None):
+            print([len(n.noodles) for n in self.noodlers if n is not None])
+            if level < 0:
+                return True
+            # We use switched equations. We need the form:
+            # y₁y₂y₃ = x
+            cur_query = AutSingleSEQuery(self.query.equations[level].switched,
+                                         constraints)
+
+            # For bidirectional mode check whether x_i (left side of eq) has a
+            # solution in both directions.
+            if fwd_constraints is not None:
+                assert len(cur_query.eq.right) == 1
+                var = cur_query.eq.right[0]
+                product: Aut = awalipy.product(constraints[var], fwd_constraints[var])
+                if product.num_useful_states() == 0:
+                    return False
+
+            noodler = SimpleNoodler(cur_query)
+            self.noodlers[level] = noodler
+            noodles: Sequence[SingleSEQuery] = noodler.noodlify()
+
+            c = 0
+
+            for noodle in noodles:
+                c += 1
+                print(f"{level}: {c}/{len(noodles)}")
+
+                cur_constraints: AutConstraints = constraints.copy()
+                cur_constraints.update(noodle.constraints)
+
+                self.propagate_contraints(cur_constraints)
+                valid = True
+                for var, aut in cur_constraints.items():
+                    if aut.num_useful_states() == 0:
+                        valid = False
+                        print(f"throw away noodle: conflict on {var}")
+                        continue
+                    cur_constraints[var] = aut.minimal_automaton()
+                if not valid:
+                    continue
+
+                if _is_sat_rec(level - 1, cur_constraints):
+                    return True
+
+            return False
+
+        for c in self.query.aut_constraints.values():
+            if c.num_useful_states() == 0:
+                return False
+
+        lvl = len(self.query.equations) - 1
+        constr = self.query.aut_constraints.copy()
+        return _is_sat_rec(lvl, constr)
+
     def solve(self) -> AutConstraints:
         """
         Find constraints representing a solution of `query`.

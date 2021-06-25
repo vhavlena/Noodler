@@ -69,5 +69,10 @@ def p1013():
     return SmtlibParserHackAbc(get_bench_file(1013))
 
 @pytest.fixture
+def p164():
+    """Runs long with propagate constraints"""
+    return SmtlibParserHackAbc(get_bench_file(164))
+
+@pytest.fixture
 def long():
     return SmtlibParserHackAbc(get_bench_file(2959))

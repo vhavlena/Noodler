@@ -8,7 +8,7 @@ from noodler import SmtlibParserHackAbc
 from noodler.algos import single_final_init
 
 # Import test cases
-from generate_parsers import pytest_generate_tests, long
+from generate_parsers import pytest_generate_tests, long, p164
 
 
 class TestSimpleNoodler:
@@ -101,9 +101,79 @@ class TestStraightlineNoodlerMachine:
         if z3_res != "timeout":
             assert (z3_res == "sat") == res
 
-    def test_long_run(self, long):
-        query = long.parse_query()
+    # def test_sat_bidi(self, noreplace_parsers: SmtlibParserHackAbc):
+    #     """
+    #     Tests equivalence of results given by noodler and z3.
+    #
+    #     This runs several minutes. By default, Z3 runs with TO
+    #     of 10s. We don't restrict noodler on time.
+    #     """
+    #     query = noreplace_parsers.parse_query()
+    #     assert is_straightline(query.equations)
+    #     nm = StraightlineNoodleMachine(query)
+    #     res = nm.is_sat(bidirectional=True)
+    #     print(res)
+    #
+    #     z3_res = run_z3(noreplace_parsers.filename)
+    #     print(z3_res)
+    #     if z3_res != "timeout":
+    #         assert (z3_res == "sat") == res
+
+    # def test_sat_propagate(self, noreplace_parsers: SmtlibParserHackAbc):
+    #     """
+    #     Tests equivalence of results given by noodler and z3.
+    #
+    #     This runs several minutes. By default, Z3 runs with TO
+    #     of 10s. We don't restrict noodler on time.
+    #     """
+    #     query = noreplace_parsers.parse_query()
+    #     assert is_straightline(query.equations)
+    #     nm = StraightlineNoodleMachine(query)
+    #     nm.propagate_contraints()
+    #     for aut in nm.query.aut_constraints.values():
+    #         single_final_init(aut)
+    #     res = nm.is_sat(bidirectional=False)
+    #     print(res)
+    #
+    #     z3_res = run_z3(noreplace_parsers.filename)
+    #     print(z3_res)
+    #     if z3_res != "timeout":
+    #         assert (z3_res == "sat") == res
+    #
+    # def test_long_run(self, long):
+    #     query = long.parse_query()
+    #     assert is_straightline(query.equations)
+    #     nm = StraightlineNoodleMachine(query)
+    #     res = nm.is_sat(bidirectional=False)
+
+    # def test_unique_final(self, noreplace_parsers: SmtlibParserHackAbc):
+    #     query = noreplace_parsers.parse_query()
+    #     nm = StraightlineNoodleMachine(query)
+    #     nm.propagate_contraints()
+    #     constraints = query.aut_constraints
+    #     for aut in constraints.values():
+    #         assert aut.num_finals() == 1
+    #         assert aut.num_initials() == 1
+
+class TestPropagate:
+    def test_long_sat(self, p164: SmtlibParserHackAbc, capsys):
+        query = p164.parse_query()
         assert is_straightline(query.equations)
         nm = StraightlineNoodleMachine(query)
-        res = nm.is_sat(bidirectional=False)
-
+        with capsys.disabled():
+            print(f"EQUATIONS")
+            for i, eq in enumerate(query.equations):
+                print(f"{i}: {eq}")
+            for var, aut in query.aut_constraints.items():
+                print(f"{var}: {aut.num_useful_states()} states, {aut.num_finals()} final")
+        nm.propagate_contraints()
+        with capsys.disabled():
+            print("=======AFTER========")
+            for var, aut in query.aut_constraints.items():
+                print(f"{var}: {aut.num_useful_states()} states, {aut.num_finals()} final")
+            print("=======AFTER========")
+            for var, aut in query.aut_constraints.items():
+                single_final_init(aut)
+                print(f"{var}: {aut.num_useful_states()} states, {aut.num_finals()} final")
+            res = nm.hybrid_sat()
+        print(res)
