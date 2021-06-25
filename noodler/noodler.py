@@ -382,7 +382,7 @@ class StraightlineNoodleMachine:
             current_constr = constraints[left_var]
             new_constr = awalipy.product(current_constr,
                                          query.proper_aut("right", minimize=False))
-            constraints[left_var] = new_constr
+            constraints[left_var] = new_constr.trim()
 
     def is_sat(self, bidirectional: bool = False) -> bool:
         """
