@@ -384,7 +384,7 @@ class StraightlineNoodleMachine:
                                          query.proper_aut("right", minimize=False))
             constraints[left_var] = new_constr.trim()
 
-    def is_sat(self, bidirectional: bool = False) -> bool:
+    def is_sat(self, bidirectional: bool = False, verbose = False) -> bool:
         """
         Decide satisfiability of the `query`.
 
@@ -398,14 +398,17 @@ class StraightlineNoodleMachine:
             of the chain to the beginning (equations k → 0). The addition is the
             other direction (0 → k) with constraints build for x_i directly from
             the equation x_i = y₀y₁… with the y-vars having index lower then i.
+        verbose: bool, default False
+            Prints info about the computation status.
 
         Returns
         -------
         True if query is satisfiable, False otherwise.
         """
         def _is_sat_rec(level: int, constraints: AutConstraints,
-                       fwd_constraints: AutConstraints = None):
-            # print([len(n.noodles) for n in self.noodlers if n is not None])
+                        fwd_constraints: AutConstraints = None):
+            if verbose:
+                print([len(n.noodles) for n in self.noodlers if n is not None])
             if level < 0:
                 return True
             # We use switched equations. We need the form:
@@ -426,7 +429,8 @@ class StraightlineNoodleMachine:
             self.noodlers[level] = noodler
             noodles: Sequence[SingleSEQuery] = noodler.noodlify()
 
-            # c = 0
+            if verbose:
+                noodle_c = 0
 
             for noodle in noodles:
                 # In bidirectional mode check that the unified constraints for each
@@ -437,9 +441,9 @@ class StraightlineNoodleMachine:
                         product: Aut = awalipy.product(noodle.constraints[var], fwd_constraints[var])
                         if product.num_useful_states() == 0:
                             continue
-
-                # c += 1
-                # print(f"{level}: {c}/{len(noodles)}")
+                if verbose:
+                    noodle_c += 1
+                    print(f"{level}: {noodle_c}/{len(noodles)}")
                 cur_constraints: AutConstraints = constraints.copy()
                 cur_constraints.update(noodle.constraints)
 
