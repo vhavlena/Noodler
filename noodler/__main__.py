@@ -16,7 +16,7 @@ def main(args: argparse.Namespace):
     noodler_machine = StraightlineNoodleMachine(q)
 
     if args.propagate_vars and not bidi:
-        noodler_machine.propagate_contraints()
+        noodler_machine.propagate_constraints()
 
     if not args.parse_only:
         res = "sat" if noodler_machine.is_sat(bidi) else "unsat"

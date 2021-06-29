@@ -360,7 +360,7 @@ class StraightlineNoodleMachine:
         self.query = query
         self.noodlers: List[Optional[SimpleNoodler]] = [None] * len(query.equations)
 
-    def propagate_contraints(self, constraints: Optional[AutConstraints] = None) -> None:
+    def propagate_constraints(self, constraints: Optional[AutConstraints] = None) -> None:
         # TODO check empty!
         """
         Propagate constraints directly from equations.
@@ -471,7 +471,7 @@ class StraightlineNoodleMachine:
 
         if bidirectional:
             fwd_constr = self.query.aut_constraints.copy()
-            self.propagate_contraints(fwd_constr)
+            self.propagate_constraints(fwd_constr)
             for c in fwd_constr.values():
                 if c.num_useful_states() == 0:
                     return False
