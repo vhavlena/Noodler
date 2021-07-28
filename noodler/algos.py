@@ -297,7 +297,7 @@ def split_segment_aut(aut: SegAut) -> Sequence[Aut]:
     # We need to make a copy before eps_segmentation
     # otherwise the trans_id could not match. We destroy
     # this automaton anyway in the process...
-    aut = aut.copy()
+    aut: SegAut = aut.copy()
     eps_trans = eps_segmentation(aut)
 
     segments = [aut.copy() for _ in eps_trans]

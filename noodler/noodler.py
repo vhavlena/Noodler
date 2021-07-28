@@ -407,6 +407,7 @@ class StraightlineNoodleMachine:
         """
         def _is_sat_rec(level: int, constraints: AutConstraints,
                         fwd_constraints: AutConstraints = None):
+
             if verbose:
                 print([len(n.noodles) for n in self.noodlers if n is not None])
             if level < 0:
@@ -415,6 +416,9 @@ class StraightlineNoodleMachine:
             # y₁y₂y₃ = x
             cur_query = AutSingleSEQuery(self.query.equations[level].switched,
                                          constraints)
+
+            if verbose:
+                print(level, cur_query.eq)
 
             # For bidirectional mode check whether x_i (left side of eq) has a
             # solution in both directions.
@@ -441,11 +445,14 @@ class StraightlineNoodleMachine:
                         product: Aut = awalipy.product(noodle.constraints[var], fwd_constraints[var])
                         if product.num_useful_states() == 0:
                             continue
+
                 if verbose:
                     noodle_c += 1
                     global counter
                     counter += 1
                     print(f"{counter} noodles explored; lvl {level}; noodle: {noodle_c}/{len(noodles)}")
+                    # from .utils import show_automata
+                    # show_automata(noodle.constraints)
                 cur_constraints: AutConstraints = constraints.copy()
                 cur_constraints.update(noodle.constraints)
 

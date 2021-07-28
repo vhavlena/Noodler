@@ -42,31 +42,31 @@ Constraints = Union[AutConstraints, REConstraints, StrConstraints]
 class StringEquation:
     # noinspection PyUnresolvedReferences
     """
-        The basic class of string equations.
+    The basic class of string equations.
 
-        If ``self.left[i] == v`` then `v` _occurs_ on left at `i`.
+    If ``self.left[i] == v`` then `v` _occurs_ on left at `i`.
 
-        Attributes
-        ----------
-        variables : str or list of str
-            Variables that appear in the equation.
-        left, right : str over vars or iterable of vars
-            Left and right side of the equation.
-        indices_l, indices_r : dict (vars → list of ints)
-            Sequence of occurrences of `v` on each side for each var `v`.
-        switched : StringEquation
-            Pointer to equation with a switched sides.
+    Attributes
+    ----------
+    variables : str or list of str
+        Variables that appear in the equation.
+    left, right : str over vars or iterable of vars
+        Left and right side of the equation.
+    indices_l, indices_r : dict (vars → list of ints)
+        Sequence of occurrences of `v` on each side for each var `v`.
+    switched : StringEquation
+        Pointer to equation with a switched sides.
 
 
-        Public functions
-        ----------------
-        get_side : {"left","right"} → str or iterable of vars
-            Returns corresponding side of the equation
+    Public functions
+    ----------------
+    get_side : {"left","right"} → str or iterable of vars
+        Returns corresponding side of the equation
 
-        Notes
-        -----
-        By default ``self.switched.switched == self``.
-        """
+    Notes
+    -----
+    By default ``self.switched.switched == self``.
+    """
 
     def __init__(self, left_side: str, right_side: str,
                  switched=None, variables=None):
