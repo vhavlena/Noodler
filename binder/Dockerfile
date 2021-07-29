@@ -4,6 +4,8 @@ MAINTAINER Fanda Blahoudek <fandikb+dev@gmail.com>
 
 USER root
 
+RUN pip install z3-solver
+
 # Copy the main stuff
 COPY noodler ${HOME}/noodler
 COPY README.md example-full-algo.ipynb example-full-algo-long.ipynb ${HOME}/
