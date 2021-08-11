@@ -12,9 +12,9 @@ COPY noodler ${HOME}/noodler
 #Copy
 COPY README.md example-full-algo.ipynb example-full-algo-long.ipynb ${HOME}/
 # Copy graph-based notebooks
-COPY notebooks ${HOME}/
+COPY notebooks ${HOME}/notebooks
 # Copy benchmarks
-COPY benchmarks ${HOME}/
+COPY benchmarks ${HOME}/benchmarks
 # Explanatory notebook
 COPY pastry-and-noodles.ipynb ${HOME}/
 COPY img ${HOME}/img
