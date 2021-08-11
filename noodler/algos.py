@@ -9,6 +9,7 @@ Public functions
 * eps_preserving_product: ε-NFA × NFA with ε-transitions preserved.
 * eps_segmentation: compute levels of ε-transitions
 * split_segment_aut: split segment automaton into segments
+* single_final_init: restrict numbers of initial and final states to 1
 """
 from typing import Callable, Sequence, Dict
 
@@ -165,12 +166,6 @@ def eps_preserving_product(aut_l: SegAut,
     aut
         Product of ``aut_l`` with ``aut_r`` with ε-transitions
         preserved.
-
-    Notes
-    -----
-    Currently inefficient! It builds all pairs of states and
-    only later trims the automaton. We should build only the
-    reachable part to speed things up.
     """
     names = opts.get("history", False)
 
@@ -208,10 +203,14 @@ def eps_preserving_product(aut_l: SegAut,
 
     for left in aut_l.initial_states():
         for right in aut_r.initial_states():
+            # Added to todo as side-effect of get_state
             get_state(left, right)
 
     while len(todo) > 0:
         s, left, right = todo.pop()
+
+        # 1. Add transitions for all non-ε symbols
+        # 2. Add ε-transitions if any
         for a in alphabet:
             for tl in aut_l.outgoing(left, a):
                 dst_l = aut_l.dst_of(tl)

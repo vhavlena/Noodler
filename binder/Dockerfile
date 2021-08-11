@@ -19,7 +19,8 @@ COPY benchmarks ${HOME}/benchmarks
 COPY pastry-and-noodles.ipynb ${HOME}/
 COPY img ${HOME}/img
 
-RUN pip install -e ${HOME}/noodler
+COPY setup.py ${HOME}
+RUN pip install -e ${HOME}
 
 RUN chown -R ${NB_UID} ${HOME}
 

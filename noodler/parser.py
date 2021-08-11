@@ -19,7 +19,7 @@ SmtlibParserHackAbc
 """
 
 import itertools
-from typing import Collection, Optional, Union
+from typing import Callable, Collection, Optional, Union
 
 from .core import StringEquation, REConstraints, RE
 from .sequery import MultiSEQuery
@@ -41,9 +41,9 @@ def awalipy_ratexp_plus(re: RE):
     RE
         (re)+ = (re)(re)*
     """
-    return awalipy.RatExp.mult(re, awalipy.RatExp.star(re))
+    return awalipy.RatExp.mult(re, re.star())
 
-# Symbol used to represent charactest not included in alphabet of Awali REs
+# Symbol used to represent characters not included in alphabet of Awali REs
 NONSPEC_SYMBOL = u"\x1A"
 
 
@@ -71,7 +71,18 @@ def translate_for_awali(string):
     return string.translate(str.maketrans(tokens))
 
 
-def awalipy_allchar(alphabet):
+def awalipy_allchar(alphabet: str) -> RE:
+    """
+    Create awalipy RE for Σ given as a string of characters.
+
+    Parameters
+    ----------
+    alphabet: str
+
+    Returns
+    -------
+    RE for a+b+c+...
+    """
     all_str = '+'.join(alphabet)
     return awalipy.RatExp(all_str, alphabet=alphabet)
 
@@ -126,23 +137,6 @@ def is_assignment(ref: z3.BoolRef) -> bool:
 
     left, right = ref.children()
     return is_string_variable(left) and is_string_constant(right)
-
-
-def is_re_constraint(ref: z3.BoolRef) -> bool:
-    """
-    Detect RE constraints.
-
-    RE constraint might be an in_RE operators or assignments.
-
-    Parameters
-    ----------
-    ref: z3.BoolRef
-
-    Returns
-    -------
-    True if ref describes a RE constraint, False otherwise.
-    """
-    return is_inre(ref) or is_assignment(ref)
 
 
 class SmtlibParser:
@@ -245,30 +239,24 @@ class SmtlibParser:
         if ref.decl().name() == 're.allchar':
             return awalipy_allchar(alphabet)
 
-        # Otherwise recursively convert children and glue the
+        # Otherwise recursively convert children and glue them
         # together using appropriate operator
         #
-        # 1. define function with fixed alphabet
-        # 2. dict z3.operator -> awalipy operator
-        # 3. convert children
-        # 4. apply awalipy operator and return
+        # 1. dict z3.operator -> awalipy operator
+        # 2. convert children
+        # 3. apply awalipy operator and return
 
-        # 1. define function with fixed alphabet for recursive calls
-        # using map
-        def fix_alpha_for_rec(child_ref):
-            return self.z3_re_to_awali(child_ref)
-
-        # 2. get awalipy operator
+        # 1. get awalipy operator
         if z3_operator not in OPERATORS_Z3_TO_AWALIPY:
             name = ref.decl().name()
             raise NotImplementedError(f"Z3 operator {z3_operator} ({name}) is "
                                       f"not implemented yet!")
-        awalipy_op = OPERATORS_Z3_TO_AWALIPY[z3_operator]
+        awalipy_op: Callable = OPERATORS_Z3_TO_AWALIPY[z3_operator]
 
-        # 3. convert children
-        child_re = map(fix_alpha_for_rec, ref.children())
+        # 2. convert children
+        child_re = [self.z3_re_to_awali(child) for child in ref.children()]
 
-        # 4. apply awalipy operator
+        # 3. apply awalipy operator
         return awalipy_op(*child_re)
 
     def create_awali_re(self, string):
@@ -289,13 +277,9 @@ class SmtlibParser:
 
     def parse_equation(self, ref: z3.BoolRef) -> StringEquation:
         left, right = ref.children()
+        # TODO This restricts only to assignment-form of equations (like SSA-fragment)
         assert is_string_variable(left)
         assert right.sort_kind() == z3.Z3_SEQ_SORT
-
-        # # Equation of the form `variable = str_constant` is
-        # # in fact a variable constraint.
-        # if is_string_constant(right):
-        #     re = self.create_awali_re(right.as_string())
 
         res_left = [left.as_string()]
 
@@ -323,24 +307,20 @@ class SmtlibParser:
         """
         Translate one regular constraint into REConstraints dict.
 
-        The reference should point to a Z3_OP_SEQ_IN_RE operator where
-        the left side is a variable, or to an assignment (Z3_OP_EQ operator)
-        with left side a string variable and right side a string constant.
+        The reference should point to a Z3_OP_SEQ_IN_RE operator.
 
         Parameters
         ----------
-        ref: z3.BoolRef to a in_re operator or to an assignment
-            constraint to translate
+        ref: z3.BoolRef to a in_re operator to translate
 
         Returns
         -------
         REConstraint
             Mapping `var -> RE`
         """
-        assert is_re_constraint(ref)
+        assert is_inre(ref)
         left, right = ref.children()
-        assert is_string_variable(left)
-        assert left.as_string() in self.variables
+        assert is_string_variable(left) and left.as_string() in self.variables
 
         return {left.as_string(): self.z3_re_to_awali(right)}
 
@@ -380,10 +360,14 @@ class SmtlibParser:
         for ref in self.assertions:
             if is_inre(ref):
                 res = self.parse_re_constraint(ref)
+                #  Assert that the variable does not have a constraint yet.
+                # TODO: Two constraints for one variable would represent intersection of the two.
                 assert res.keys().isdisjoint(self.constraints)
                 self.constraints.update(res)
 
         # We need first all in_re constraints before processing assignments
+        # for cases where we have both RE-constraint for `x` and an assignment
+        # for `x`. This can be used to check for example whether "abc" ∈ L(RE).
         for ref in self.assertions:
             if is_inre(ref):
                 continue
@@ -403,7 +387,7 @@ class SmtlibParser:
                 raise NotImplementedError(f"Z3 operator {z3_operator} ({name}) is "
                                           f"not implemented yet!")
 
-        sigma_star = awalipy_allchar(self.alphabet_str).star()
+        sigma_star: RE = awalipy_allchar(self.alphabet_str).star()
         for var in self.variables:
             self.constraints.setdefault(var, sigma_star)
 
