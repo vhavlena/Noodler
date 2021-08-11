@@ -8,8 +8,13 @@ RUN pip install z3-solver
 
 # Copy the main stuff
 COPY noodler ${HOME}/noodler
-COPY README.md example-full-algo.ipynb example-full-algo-long.ipynb ${HOME}/
 
+#Copy
+COPY README.md example-full-algo.ipynb example-full-algo-long.ipynb ${HOME}/
+# Copy graph-based notebooks
+COPY notebooks ${HOME}/
+# Copy benchmarks
+COPY benchmarks ${HOME}/
 # Explanatory notebook
 COPY pastry-and-noodles.ipynb ${HOME}/
 COPY img ${HOME}/img
