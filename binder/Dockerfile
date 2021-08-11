@@ -19,6 +19,9 @@ COPY benchmarks ${HOME}/benchmarks
 COPY pastry-and-noodles.ipynb ${HOME}/
 COPY img ${HOME}/img
 
+RUN pip install -e ${HOME}/noodler
+
 RUN chown -R ${NB_UID} ${HOME}
+
 # Switch back to jovyan to avoid accidental container runs as root
 USER $NB_UID
