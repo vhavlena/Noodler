@@ -6,3 +6,5 @@ from .noodler import QueueNoodler, MultiSEQuery, SimpleNoodler, \
 from .parser import SmtlibParserHackAbc
 
 from .sequery import AutSingleSEQuery, RESingleSEQuery
+
+from . import utils
