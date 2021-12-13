@@ -30,13 +30,13 @@ def noodlify(aut: SegAut,
              include_empty: bool = False) -> Sequence[SegAut]:
     """
     Create noodles from segment automaton.
-    
+
     Segment automaton is a chain of automata connected
     via ε-transitions. A noodle is a copy of the segment
     automaton with exactly 1 ε-transition between each
     two consecutive segments. Noodlify return the list of
     all (non-empty) noodles.
-    
+
     Parameters
     ----------
     aut : aut
@@ -125,12 +125,12 @@ def create_unified_query(equation: StringEquation,
     if len(left_auts) != len(equation.left):
         raise ValueError(f"""
         The length of `left_auts` must agree with length of `equation.left`.
-        Given len(left_auts) = {len(left_auts)} and 
+        Given len(left_auts) = {len(left_auts)} and
               len(equation.left) = {len(equation.left)}.""")
     if len(right_auts) != len(equation.right):
         raise ValueError(f"""
         The length of `right_auts` must agree with length of `equation.right`.
-        Given len(right_auts) = {len(right_auts)} and 
+        Given len(right_auts) = {len(right_auts)} and
               len(equation.right) = {len(equation.right)}.""")
 
     const: AutConstraints = {}

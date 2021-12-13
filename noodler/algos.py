@@ -175,7 +175,7 @@ def eps_preserving_product(aut_l: SegAut,
     todo = []
 
     alphabet = aut_l.alphabet()
-    new_aut = awalipy.make_automaton(alphabet)
+    new_aut = awalipy.Automaton(alphabet)
     new_aut.allow_eps_transition_here()
 
     def get_state(l: int, r: int) -> int:
@@ -212,15 +212,15 @@ def eps_preserving_product(aut_l: SegAut,
         # 1. Add transitions for all non-ε symbols
         # 2. Add ε-transitions if any
         for a in alphabet:
-            for tl in aut_l.outgoing(left, a):
-                dst_l = aut_l.dst_of(tl)
-                for tr in aut_r.outgoing(right, a):
-                    dst_r = aut_r.dst_of(tr)
+            for dst_l in aut_l.successors(left, a):
+                #dst_l = aut_l.dst_of(tl)
+                for dst_r in aut_r.successors(right, a):
+                    #dst_r = aut_r.dst_of(tr)
                     new_aut.set_transition(s,
                                            get_state(dst_l, dst_r),
                                            a)
-        for tl in aut_l.outgoing(left, "\\e"):
-            dst_l = aut_l.dst_of(tl)
+        for dst_l in aut_l.successors(left, "\\e"):
+            #dst_l = aut_l.dst_of(tl)
             new_aut.add_eps_transition(s, get_state(dst_l, right))
 
     return new_aut.trim()
@@ -334,9 +334,9 @@ def single_final_init(aut: Aut) -> None:
         init = aut.add_state()
         for s in aut.initial_states():
             for a in aut.alphabet():
-                for tr in aut.outgoing(s, a):
+                for dst in aut.successors(s, a):
                     aut.set_transition(init,
-                                       aut.dst_of(tr),
+                                       dst,
                                        a)
             aut.unset_initial(s)
         aut.set_initial(init)

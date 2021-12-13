@@ -53,6 +53,7 @@ def translate_for_awali(string):
         return "\e"
     if "\xfffd" in string:
         string = string.replace("\xfffd", "\ufffd")
+    string = bytes(string, 'ASCII').decode()
     tokens = {
         " ": "\x19",
         "<": "\x18",
@@ -68,7 +69,7 @@ def translate_for_awali(string):
         "\\": "\x08",
         "\ufffd": "\x07",
     }
-    return string.translate(str.maketrans(tokens))
+    return string #string.translate(str.maketrans(tokens))
 
 
 def awalipy_allchar(alphabet: str) -> RE:
@@ -157,7 +158,7 @@ class SmtlibParser:
         for ref in self.assertions:
             self._gather_symbols(ref)
 
-        self.alphabet_str: str = "".join(self.alphabet) + NONSPEC_SYMBOL
+        self.alphabet_str: str = "".join(self.alphabet) #+ NONSPEC_SYMBOL
 
         # Fresh variables
         self.next_variable_id = 0
