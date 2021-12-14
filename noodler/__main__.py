@@ -1,5 +1,6 @@
 import argparse
 import sys
+import z3
 
 from .core import is_straightline
 from .parser import SmtlibParserHackAbc
@@ -10,8 +11,16 @@ def main(args: argparse.Namespace):
     filename = args.filename
     bidi = args.bidi
 
-    smt_parser = SmtlibParserHackAbc(filename)
-    q = smt_parser.parse_query()
+    try:
+        smt_parser = SmtlibParserHackAbc(filename)
+        q = smt_parser.parse_query()
+    except NotImplementedError:
+        sys.stderr.write("Not supported constraint\n")
+        exit(5)
+    except z3.z3types.Z3Exception:
+        sys.stderr.write("Error during reading the file\n")
+        exit(4)
+
     assert is_straightline(q.equations)
     noodler_machine = StraightlineNoodleMachine(q)
 

@@ -100,7 +100,7 @@ def chain_automata(automata: Sequence[Aut]) -> SegAut:
         Automaton that links auts from ``automata`` by ε-transitions
         between final an initial states.
     """
-    res: SegAut = multiop(automata, awalipy.union)
+    res: SegAut = multiop(automata, awalipy.sum)
     res.allow_eps_transition_here()
 
     # pre_a is the automaton which will be source of ε-transitions,
