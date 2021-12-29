@@ -26,6 +26,7 @@ from .sequery import MultiSEQuery
 
 import awalipy
 import z3
+import ast
 
 
 def awalipy_ratexp_plus(re: RE):
@@ -53,7 +54,9 @@ def translate_for_awali(string):
         return "\e"
     if "\xfffd" in string:
         string = string.replace("\xfffd", "\ufffd")
-    string = bytes(string, 'ASCII').decode()
+
+    string = ast.parse("\""+string+"\"")
+    string = string.body[0].value.value
     tokens = {
         " ": "\x19",
         "<": "\x18",
@@ -65,11 +68,19 @@ def translate_for_awali(string):
         "{": "\x12",
         "}": "\x11",
         "*": "\x10",
-        ".": "\x09",
+        ".": "\x1f",
         "\\": "\x08",
-        "\ufffd": "\x07",
+        "\'" : "\x07",
+        ";" : "\x06",
+        "," : "\x05",
+        "\t" : "\x1e",
+        "=" : "\x04",
+        "[" : "\x03",
+        "]" : "\x02",
+        "\r" : "\x1d",
+        "\ufffd": "\x01",
     }
-    return string #string.translate(str.maketrans(tokens))
+    return string.translate(str.maketrans(tokens))
 
 
 def awalipy_allchar(alphabet: str) -> RE:
@@ -405,7 +416,7 @@ class SmtlibParserHackAbc(SmtlibParser):
 
     def __init__(self, filename: str):
         super(SmtlibParserHackAbc, self).__init__(filename)
-        self.alphabet_str = translate_for_awali(self.alphabet_str)
+        #self.alphabet_str = translate_for_awali(self.alphabet_str)
 
     def create_awali_re(self, string):
         string = translate_for_awali(string)

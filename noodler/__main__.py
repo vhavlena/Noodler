@@ -28,7 +28,7 @@ def main(args: argparse.Namespace):
         noodler_machine.propagate_constraints()
 
     if not args.parse_only:
-        res = "sat" if noodler_machine.is_sat(bidi) else "unsat"
+        res = "sat" if noodler_machine.is_sat(bidi, False) else "unsat"
         print(res)
 
 

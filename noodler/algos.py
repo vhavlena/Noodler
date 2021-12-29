@@ -14,6 +14,7 @@ Public functions
 from typing import Callable, Sequence, Dict
 
 import awalipy
+import ast
 
 from .core import Aut, SegAut, TransID
 
@@ -175,6 +176,10 @@ def eps_preserving_product(aut_l: SegAut,
     todo = []
 
     alphabet = aut_l.alphabet()
+    alphabet = alphabet.replace("\\0x0", "\\x")
+    alp = ast.parse("\""+alphabet+"\"")
+    alphabet = alp.body[0].value.value
+
     new_aut = awalipy.Automaton(alphabet)
     new_aut.allow_eps_transition_here()
 
