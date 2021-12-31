@@ -21,8 +21,8 @@ SmtlibParserHackAbc
 import itertools
 from typing import Callable, Collection, Optional, Union
 
-from .core import StringEquation, REConstraints, RE
-from .sequery import MultiSEQuery
+from .core import StringEquation, REConstraints, RE, StringConstraint, ConstraintType
+from .sequery import MultiSEQuery, awalipy_allchar
 
 import awalipy
 import z3
@@ -81,23 +81,6 @@ def translate_for_awali(string):
         "\ufffd": "\x01",
     }
     return string.translate(str.maketrans(tokens))
-
-
-def awalipy_allchar(alphabet: str) -> RE:
-    """
-    Create awalipy RE for Σ given as a string of characters.
-
-    Parameters
-    ----------
-    alphabet: str
-
-    Returns
-    -------
-    RE for a+b+c+...
-    """
-    all_str = '+'.join(alphabet)
-    return awalipy.RatExp(all_str, alphabet=alphabet)
-
 
 OPERATORS_Z3_TO_AWALIPY = {
     z3.Z3_OP_RE_PLUS : awalipy_ratexp_plus,
@@ -287,13 +270,14 @@ class SmtlibParser:
         """
         return awalipy.RatExp(string, alphabet=self.alphabet_str)
 
-    def parse_equation(self, ref: z3.BoolRef) -> StringEquation:
+    def parse_equation(self, ref: z3.BoolRef) -> StringConstraint:
         left, right = ref.children()
         # TODO This restricts only to assignment-form of equations (like SSA-fragment)
         assert is_string_variable(left)
         assert right.sort_kind() == z3.Z3_SEQ_SORT
 
         res_left = [left.as_string()]
+        aux_vars = dict()
 
         def z3_concat_to_var_list(z3_ref: z3.SeqRef) -> Collection[str]:
             """
@@ -309,11 +293,18 @@ class SmtlibParser:
             """
             if is_string_variable(z3_ref):
                 return [z3_ref.as_string()]
+            elif is_string_constant(z3_ref):
+                const = z3_ref.as_string()
+                const_re: RE = self.create_awali_re(const)
+                new_var = self.fresh_variable()
+                aux_vars[new_var] = const_re
+                return [new_var]
             children = [z3_concat_to_var_list(child) for child in z3_ref.children()]
             return itertools.chain(*children)
 
         res_right = z3_concat_to_var_list(right)
-        return StringEquation(res_left, list(res_right))
+        constr = StringConstraint(ConstraintType.RE, aux_vars)
+        return StringConstraint(ConstraintType.AND, StringConstraint(ConstraintType.EQ, StringEquation(res_left, list(res_right))), constr)
 
     def parse_re_constraint(self, ref: z3.BoolRef) -> REConstraints:
         """
@@ -336,7 +327,7 @@ class SmtlibParser:
 
         return {left.as_string(): self.z3_re_to_awali(right)}
 
-    def process_assignment(self, ref: z3.BoolRef) -> None:
+    def process_assignment(self, ref: z3.BoolRef) -> StringConstraint:
         """
         Create a RE constraint or a fresh equation for literal assignment.
 
@@ -358,15 +349,27 @@ class SmtlibParser:
         var, const = (c.as_string() for c in ref.children())
         const_re: RE = self.create_awali_re(const)
 
-        if var not in self.constraints:
-            self.constraints[var] = const_re
-        else:
-            # Introduce a fresh variable and a new equation
-            new_var = self.fresh_variable()
-            self.constraints[new_var] = const_re
-            self.equations.append(StringEquation([var],[new_var]))
+        constr = { var: const_re }
+        return StringConstraint(ConstraintType.RE, constr)
 
-    def parse_query(self) -> MultiSEQuery:
+    def parse_bool_expression(self, ref: z3.BoolRef) -> StringConstraint:
+        if is_equation(ref):
+            return self.parse_equation(ref)
+
+        if ref.decl().kind() == z3.Z3_OP_AND:
+            ands = [self.parse_bool_expression(c) for c in ref.children()]
+            return StringConstraint.build_op(ConstraintType.AND, ands)
+
+        if ref.decl().kind() == z3.Z3_OP_OR:
+            ors = [self.parse_bool_expression(c) for c in ref.children()]
+            return StringConstraint.build_op(ConstraintType.OR, ors)
+
+        z3_operator, name = ref.decl().kind(), ref.decl().name()
+        raise NotImplementedError(f"Z3 operator {z3_operator} ({name}) is "
+                                  f"not implemented yet!")
+
+
+    def parse_query(self) -> StringConstraint:
         # TODO might be or of equations
 
         for ref in self.assertions:
@@ -384,26 +387,26 @@ class SmtlibParser:
             if is_inre(ref):
                 continue
 
+
             if is_equation(ref) and not is_assignment(ref):
                 equation = self.parse_equation(ref)
                 self.equations.append(equation)
 
             elif is_assignment(ref):
                 # Assignments are only stored for later processing
-                self.process_assignment(ref)
+                self.equations.append(self.process_assignment(ref))
 
             # The rest should be `or`
             else:
+                self.equations.append(self.parse_bool_expression(ref))
                 # assert ref.decl().kind() == z3.Z3_OP_OR
-                z3_operator, name = ref.decl().kind(), ref.decl().name()
-                raise NotImplementedError(f"Z3 operator {z3_operator} ({name}) is "
-                                          f"not implemented yet!")
+                # z3_operator, name = ref.decl().kind(), ref.decl().name()
+                # raise NotImplementedError(f"Z3 operator {z3_operator} ({name}) is "
+                #                           f"not implemented yet!")
 
-        sigma_star: RE = awalipy_allchar(self.alphabet_str).star()
-        for var in self.variables:
-            self.constraints.setdefault(var, sigma_star)
-
-        return MultiSEQuery(self.equations, self.constraints)
+        constr = StringConstraint(ConstraintType.RE, self.constraints)
+        and_eqs = StringConstraint.build_op(ConstraintType.AND, self.equations)
+        return StringConstraint(ConstraintType.AND, and_eqs, constr)
 
 
 class SmtlibParserHackAbc(SmtlibParser):

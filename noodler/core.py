@@ -24,8 +24,10 @@ TransID : int
 """
 
 from typing import Dict, Type, Union, Sequence
+from enum import Enum
 
 import awalipy
+import itertools
 
 Aut = awalipy.Automaton
 SegAut: Type[awalipy.Automaton] = awalipy.Automaton
@@ -37,6 +39,13 @@ AutConstraints = Dict[str, Aut]
 REConstraints = Dict[str, RE]
 StrConstraints = Dict[str, str]
 Constraints = Union[AutConstraints, REConstraints, StrConstraints]
+
+
+class ConstraintType(Enum):
+    EQ = 0
+    AND = 1
+    OR = 2
+    RE = 3
 
 
 class StringEquation:
@@ -127,12 +136,101 @@ class StringEquation:
             return self.left
         return self.right
 
+
+    def get_vars(self) -> str:
+        return self.left + self.right
+
+
     def __str__(self):
         """Print equation in the form of left=right."""
         return f"{self.left} = {self.right}"
 
     def __repr__(self):
         return f"{self.__class__.__name__}: {self.left} = {self.right}"
+
+
+class StringConstraint:
+
+    def __init__(self, tp: ConstraintType, left_side: "StringConstraint", right_side: "StringConstraint" = None):
+        self.op = tp
+        self.left = left_side
+        self.right = right_side
+
+
+    def to_dnf(self):
+        if self.op == ConstraintType.EQ or self.op == ConstraintType.RE:
+            return self
+
+        left_tmp = self.left.to_dnf()
+        right_tmp = self.right.to_dnf()
+
+        if self.op == ConstraintType.OR:
+            return StringConstraint(ConstraintType.OR, left_tmp, right_tmp)
+
+        left_or = left_tmp.gather_op(ConstraintType.OR)
+        right_or = right_tmp.gather_op(ConstraintType.OR)
+
+        top_and = []
+        for l,r in itertools.product(left_or, right_or):
+            top_and.append(StringConstraint(ConstraintType.AND, l, r))
+
+        return StringConstraint.build_op(ConstraintType.OR, top_and)
+
+
+    def gather_op(self, type: ConstraintType):
+        if self.op != type:
+            return [self]
+
+        left_lst = self.left.gather_op(type)
+        right_lst = self.right.gather_op(type)
+        return left_lst + right_lst
+
+
+    def get_vars(self):
+        if self.op == ConstraintType.EQ:
+            return self.left.get_vars()
+        if self.op == ConstraintType.RE:
+            return list(self.left.keys())
+
+        left_lst = self.left.get_vars()
+        right_lst = self.right.get_vars()
+        return left_lst + right_lst
+
+
+    def __str__(self):
+        if self.op == ConstraintType.EQ or self.op == ConstraintType.RE:
+            return " : " + str(self.left)
+        if self.op == ConstraintType.AND:
+            return "({0} AND {1})".format(str(self.left), str(self.right))
+        if self.op == ConstraintType.OR:
+            return "({0} OR {1})".format(str(self.left), str(self.right))
+
+
+    def gather_leafs(self, type: ConstraintType):
+        if self.op == type:
+            return [self]
+        if self.op == ConstraintType.EQ or self.op == ConstraintType.RE:
+            return []
+        left_lst = self.left.gather_leafs(type)
+        right_lst = self.right.gather_leafs(type)
+        return left_lst + right_lst
+
+
+    def __repr__(self):
+        return str(self)
+
+
+    @staticmethod
+    def build_op(type: ConstraintType, lst: Sequence["StringConstraint"]):
+        if len(lst) == 0:
+            raise Exception("The list must be non-empty")
+
+        act = lst[0]
+        for i in range(1, len(lst)):
+            act = StringConstraint(type, act, lst[i])
+        return act
+
+
 
 
 def is_straightline(equations: Sequence[StringEquation]) -> bool:
