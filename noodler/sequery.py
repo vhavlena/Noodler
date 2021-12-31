@@ -20,11 +20,27 @@ import awalipy
 from .utils import show_automata
 from .algos import chain_automata, multiop
 #types
-from .core import AutConstraints, Aut, Constraints, SegAut
+from .core import AutConstraints, Aut, Constraints, SegAut, RE
 # classes
-from .core import StringEquation
+from .core import StringEquation, StringConstraint, ConstraintType
 # functions
 from .core import create_automata_constraints
+
+
+def awalipy_allchar(alphabet: str) -> RE:
+    """
+    Create awalipy RE for Σ given as a string of characters.
+
+    Parameters
+    ----------
+    alphabet: str
+
+    Returns
+    -------
+    RE for a+b+c+...
+    """
+    all_str = '+'.join(alphabet)
+    return awalipy.RatExp(all_str, alphabet=alphabet)
 
 
 class SingleSEQuery:
@@ -288,18 +304,56 @@ class MultiSEQuery:
     """
 
     def __init__(self, equations: Sequence[StringEquation],
-                 constraints: Constraints):
+                 constraints: AutConstraints):
         """
         Create MultiSEQuery.
 
         Parameters
         ----------
         equations: Sequence[StringEquation]
-        constraints: Constraints
-            Dictionary of the form var→constraint. The constraints
-            for distinct variables need to share the alphabet.
+        constraints: Automata Constraints
         """
         # TODO allow list of strings
         self.equations = equations
 
-        self.aut_constraints = create_automata_constraints(constraints)
+        self.aut_constraints = constraints
+
+
+
+class StringConstraintQuery:
+
+    def __init__(self, constr: StringConstraint, alphabet_str: str):
+        self.alphabet = alphabet_str
+        self.constraint = constr
+
+
+    @staticmethod
+    def _merge_constraints(cnstr: Sequence[AutConstraints]) -> AutConstraints:
+        if len(cnstr) == 0:
+            return dict()
+
+        res = cnstr[0]
+        for c in cnstr:
+            for k, v in c.items():
+                if k in res:
+                    res[k] = awalipy.product(v, res[k]).proper().minimal_automaton().trim()
+        return res
+
+
+    def get_sequeries(self) -> Sequence[MultiSEQuery]:
+        queries = []
+        dnf = self.constraint.to_dnf()
+        print(dnf)
+
+        ors = dnf.gather_op(ConstraintType.OR)
+        for c_and in ors:
+            constr = [create_automata_constraints(c.left) for c in c_and.gather_leafs(ConstraintType.RE)]
+            constr_dict = StringConstraintQuery._merge_constraints(constr)
+            eqs = [c.left for c in c_and.gather_leafs(ConstraintType.EQ)]
+            c_vars = c_and.get_vars()
+
+            sigma_star: RE = awalipy_allchar(self.alphabet).star()
+            for var in c_vars:
+                constr_dict.setdefault(var, awalipy.Automaton(sigma_star).proper().minimal_automaton().trim())
+            queries.append(MultiSEQuery(eqs, constr_dict))
+        return queries

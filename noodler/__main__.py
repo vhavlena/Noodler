@@ -5,6 +5,7 @@ import z3
 from .core import is_straightline
 from .parser import SmtlibParserHackAbc
 from .noodler import StraightlineNoodleMachine
+from .sequery import StringConstraintQuery
 
 
 def main(args: argparse.Namespace):
@@ -14,6 +15,8 @@ def main(args: argparse.Namespace):
     try:
         smt_parser = SmtlibParserHackAbc(filename)
         q = smt_parser.parse_query()
+        scq = StringConstraintQuery(q, smt_parser.alphabet_str)
+        multiquery = scq.get_sequeries()
     except NotImplementedError:
         sys.stderr.write("Not supported constraint\n")
         exit(5)
@@ -21,15 +24,23 @@ def main(args: argparse.Namespace):
         sys.stderr.write("Error during reading the file\n")
         exit(4)
 
-    assert is_straightline(q.equations)
-    noodler_machine = StraightlineNoodleMachine(q)
+    sat = False
+    for sq in multiquery:
+        assert is_straightline(sq.equations)
+        noodler_machine = StraightlineNoodleMachine(sq)
 
-    if args.propagate_vars and not bidi:
-        noodler_machine.propagate_constraints()
+        if args.propagate_vars and not bidi:
+            noodler_machine.propagate_constraints()
 
-    if not args.parse_only:
-        res = "sat" if noodler_machine.is_sat(bidi, False) else "unsat"
-        print(res)
+        if not args.parse_only:
+            if noodler_machine.is_sat(bidi, True):
+                sat = True
+                break
+
+    if sat:
+        print("sat")
+    else:
+        print("unsat")
 
 
 description = """Solves SAT problem for string constraints."""
