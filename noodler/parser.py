@@ -352,7 +352,17 @@ class SmtlibParser:
         constr = { var: const_re }
         return StringConstraint(ConstraintType.RE, constr)
 
+
     def parse_bool_expression(self, ref: z3.BoolRef) -> StringConstraint:
+        """!
+        Parse positive boolean combination of equations
+
+        @param ref: z3.BoolRef
+        @return StringConstraint instance
+        """
+        if is_assignment(ref):
+            return self.process_assignment(ref)
+
         if is_equation(ref):
             return self.parse_equation(ref)
 
@@ -387,22 +397,7 @@ class SmtlibParser:
             if is_inre(ref):
                 continue
 
-
-            if is_equation(ref) and not is_assignment(ref):
-                equation = self.parse_equation(ref)
-                self.equations.append(equation)
-
-            elif is_assignment(ref):
-                # Assignments are only stored for later processing
-                self.equations.append(self.process_assignment(ref))
-
-            # The rest should be `or`
-            else:
-                self.equations.append(self.parse_bool_expression(ref))
-                # assert ref.decl().kind() == z3.Z3_OP_OR
-                # z3_operator, name = ref.decl().kind(), ref.decl().name()
-                # raise NotImplementedError(f"Z3 operator {z3_operator} ({name}) is "
-                #                           f"not implemented yet!")
+            self.equations.append(self.parse_bool_expression(ref))
 
         constr = StringConstraint(ConstraintType.RE, self.constraints)
         and_eqs = StringConstraint.build_op(ConstraintType.AND, self.equations)

@@ -323,12 +323,24 @@ class MultiSEQuery:
 class StringConstraintQuery:
 
     def __init__(self, constr: StringConstraint, alphabet_str: str):
+        """!
+        Create a query from a given string constraint
+
+        @param constr: A string constraint
+        @param alphabet_str: Alphabet in the form of sequence of chars
+        """
         self.alphabet = alphabet_str
         self.constraint = constr
 
 
     @staticmethod
     def _merge_constraints(cnstr: Sequence[AutConstraints]) -> AutConstraints:
+        """!
+        Merge constraints over the same variable (using automata intersection)
+
+        @param cnstr: A list of AutConstraints
+        @return Merged AutConstraint
+        """
         if len(cnstr) == 0:
             return dict()
 
@@ -341,9 +353,13 @@ class StringConstraintQuery:
 
 
     def get_sequeries(self) -> Sequence[MultiSEQuery]:
+        """!
+        Get subqueries for solving of the string constraint.
+
+        @return A list of MultiSEQuery
+        """
         queries = []
         dnf = self.constraint.to_dnf()
-        print(dnf)
 
         ors = dnf.gather_op(ConstraintType.OR)
         for c_and in ors:
