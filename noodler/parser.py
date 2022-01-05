@@ -273,7 +273,7 @@ class SmtlibParser:
     def parse_equation(self, ref: z3.BoolRef) -> StringConstraint:
         left, right = ref.children()
         # TODO This restricts only to assignment-form of equations (like SSA-fragment)
-        assert is_string_variable(left)
+        # assert is_string_variable(left)
         assert right.sort_kind() == z3.Z3_SEQ_SORT
 
         res_left = [left.as_string()]
@@ -302,9 +302,10 @@ class SmtlibParser:
             children = [z3_concat_to_var_list(child) for child in z3_ref.children()]
             return itertools.chain(*children)
 
+        res_left = z3_concat_to_var_list(left)
         res_right = z3_concat_to_var_list(right)
         constr = StringConstraint(ConstraintType.RE, aux_vars)
-        return StringConstraint(ConstraintType.AND, StringConstraint(ConstraintType.EQ, StringEquation(res_left, list(res_right))), constr)
+        return StringConstraint(ConstraintType.AND, StringConstraint(ConstraintType.EQ, StringEquation(list(res_left), list(res_right))), constr)
 
     def parse_re_constraint(self, ref: z3.BoolRef) -> REConstraints:
         """

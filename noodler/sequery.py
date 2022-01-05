@@ -27,6 +27,9 @@ from .core import StringEquation, StringConstraint, ConstraintType
 from .core import create_automata_constraints
 
 
+DEFAULTALPHABET = "abc"
+
+
 def awalipy_allchar(alphabet: str) -> RE:
     """
     Create awalipy RE for Σ given as a string of characters.
@@ -319,6 +322,17 @@ class MultiSEQuery:
         self.aut_constraints = constraints
 
 
+    def __str__(self) -> str:
+        """!
+        String representation of the MultiSEQuery
+        """
+        return str(self.equations) + str(self.aut_constraints)
+
+
+    def __repr__(self) -> str:
+        return str(self)
+
+
 
 class StringConstraintQuery:
 
@@ -330,6 +344,8 @@ class StringConstraintQuery:
         @param alphabet_str: Alphabet in the form of sequence of chars
         """
         self.alphabet = alphabet_str
+        if len(self.alphabet) == 0:
+            self.alphabet = DEFAULTALPHABET
         self.constraint = constr
 
 
@@ -349,6 +365,8 @@ class StringConstraintQuery:
             for k, v in c.items():
                 if k in res:
                     res[k] = awalipy.product(v, res[k]).proper().minimal_automaton().trim()
+                else:
+                    res[k] = v
         return res
 
 
