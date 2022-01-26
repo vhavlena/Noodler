@@ -25,6 +25,7 @@ TransID : int
 
 from typing import Dict, Type, Union, Sequence, Set
 from enum import Enum
+from dataclasses import dataclass
 
 import itertools
 
@@ -263,3 +264,9 @@ class StringConstraint:
         for i in range(1, len(lst)):
             act = StringConstraint(type, act, lst[i])
         return act
+
+
+@dataclass
+class StringEqNode:
+    succ : "StringEqNode"
+    eq : StringEquation
