@@ -26,6 +26,7 @@ TransID : int
 from typing import Dict, Type, Union, Sequence, Set
 from enum import Enum
 from dataclasses import dataclass
+from collections import defaultdict
 
 import itertools
 
@@ -126,8 +127,20 @@ class StringEquation:
         return self.right
 
 
-    def get_vars(self) -> str:
+    def get_vars(self) -> Set[str]:
         return set(self.left) | set(self.right)
+
+
+    def get_vars_side(self, side: str) -> Set[str]:
+        if side == "left":
+            return set(self.left)
+        return set(self.right)
+
+
+    def more_occur_side(self, side: str) -> bool:
+        if side == "left":
+            return len(set(self.left)) != len(self.left)
+        return len(set(self.right)) != len(self.right)
 
 
     def __str__(self):
@@ -268,5 +281,51 @@ class StringConstraint:
 
 @dataclass
 class StringEqNode:
-    succ : "StringEqNode"
+    succ : Sequence["StringEqNode"]
     eq : StringEquation
+
+
+class StringEqGraph:
+
+    def __init__(self, vert: Sequence[StringEqNode]):
+        self.vertices = vert
+
+
+    def reduce(self):
+        other_vars: dict[StringEquation, Set[str]] = defaultdict(lambda: set())
+        n_vert = []
+        proc = set()
+
+        for v1 in self.vertices:
+            for v2 in self.vertices:
+                if v1.eq == v2.eq:
+                    continue
+                other_vars[v1.eq].union(v2.eq.get_vars())
+
+        for v in self.vertices:
+            if (len(v.eq.get_vars_side("right") & other_vars[v.eq]) == 0) and (not v.eq.more_occur_side("right")):
+                v.succ = [s for s in v.succ if s.eq != v.eq.switched]
+
+
+
+    def to_graphwiz(self):
+        """!
+        Convert the graph into the DOT format.
+        """
+
+        ret = "digraph \"Equation\" { rankdir=LR; \n"
+        ret += "{ rank = LR }\n"
+        ret += "node [shape = circle];\n"
+        num: Dict[StringEquation, int] = dict()
+
+        c = 0
+        for eq in self.vertices:
+            num[eq.eq] = c
+            ret += "\"{0}\" [label=\"{1}\"]\n".format(c, eq.eq)
+            c = c + 1
+
+        for eq in self.vertices:
+            for s in eq.succ:
+                ret += "\"{0}\" -> \"{1}\";\n".format(num[eq.eq], num[s.eq])
+        ret += "}\n";
+        return ret

@@ -26,6 +26,8 @@ from .core import StringEquation, StringConstraint, ConstraintType
 # functions
 from .core import create_automata_constraints
 
+from .formula import StringEqGraph, StringEqNode
+
 
 DEFAULTALPHABET = "abc"
 
@@ -129,7 +131,7 @@ class SingleSEQuery:
         Aut
             Represents the language of one side of equation.
         """
-        res = multiop(self.automata_for_side(side), awalipy.concatenate)
+        res = multiop(self.automata_for_side(side), lambda x,y: x.concatenate(y))
 
         if minimize:
             return res.minimal_automaton()
@@ -211,8 +213,8 @@ class AutSingleSEQuery(SingleSEQuery):
         auts_l = self.automata_for_side("left")
         auts_r = self.automata_for_side("right")
 
-        aut_l = multiop(auts_l, awalipy.concatenate)
-        aut_r = multiop(auts_r, awalipy.concatenate)
+        aut_l = multiop(auts_l, lambda x,y: x.concatenate(y))
+        aut_r = multiop(auts_r, lambda x,y: x.concatenate(y))
 
         return awalipy.are_equivalent(aut_l, aut_r)
 
@@ -331,6 +333,31 @@ class MultiSEQuery:
 
     def __repr__(self) -> str:
         return str(self)
+
+
+    def get_eqs_graph(self) -> StringEqGraph:
+
+        nodes: Dict[StringEquation, StringEqNode] = dict()
+        all_nodes = []
+        for eq in self.equations:
+            nn: StringEqNode = StringEqNode([], eq)
+            nodes[eq] = nn
+            all_nodes.append(nn)
+
+        for eq in self.equations:
+            for eqprime in self.equations:
+                if eqprime == eq:
+                    continue
+                if len(eqprime.get_vars() & eq.get_vars()) != 0:
+                    nodes[eq].succ.append(nodes[eqprime])
+
+        for k, v in nodes.items():
+            nn: StringEqNode = StringEqNode([v], k.switched)
+            v.succ.append(nn)
+            all_nodes.append(nn)
+
+        return StringEqGraph(all_nodes)
+
 
 
 
