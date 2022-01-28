@@ -199,6 +199,22 @@ class AutSingleSEQuery(SingleSEQuery):
 
         return automata
 
+
+    def is_sub_balanced(self) -> bool:
+
+        auts_l = self.automata_for_side("left")
+        auts_r = self.automata_for_side("right")
+
+        aut_l = multiop(auts_l, lambda x,y: x.concatenate(y))
+        aut_r = multiop(auts_r, lambda x,y: x.concatenate(y))
+
+
+        comp = aut_r.minimal_automaton().complement()
+        tmp = aut_l.product(comp).trim()
+
+        return len(tmp.useful_states()) == 0
+
+
     def is_balanced(self) -> bool:
         """
         Check if query is balanced.
@@ -356,7 +372,7 @@ class MultiSEQuery:
             v.succ.append(nn)
             all_nodes.append(nn)
 
-        return StringEqGraph(all_nodes)
+        return StringEqGraph(all_nodes, set(self.equations))
 
 
 

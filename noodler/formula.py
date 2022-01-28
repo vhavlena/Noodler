@@ -143,6 +143,10 @@ class StringEquation:
         return len(set(self.right)) != len(self.right)
 
 
+    def is_sub_equation(self) -> bool:
+        return (not self.more_occur_side("right")) and (len(self.get_vars_side("right") & self.get_vars_side("left")) == 0)
+
+
     def __str__(self):
         """Print equation in the form of left=right."""
         return f"{self.left} = {self.right}"
@@ -283,28 +287,53 @@ class StringConstraint:
 class StringEqNode:
     succ : Sequence["StringEqNode"]
     eq : StringEquation
+    sub : bool = False
 
 
 class StringEqGraph:
 
-    def __init__(self, vert: Sequence[StringEqNode]):
+    def __init__(self, vert: Sequence[StringEqNode], eqs: Set[StringEquation]):
         self.vertices = vert
+        self.equations = eqs
+        self.sub_eqs = set()
+        self._compute_sub_eqs()
+
+
+    def _compute_sub_eqs(self):
+        self.sub_eqs = set()
+        disjoint = set()
+        for v in self.vertices:
+            if v.eq.is_sub_equation() and len(disjoint & v.eq.get_vars_side("right")) == 0:
+                self.sub_eqs.add(v.eq)
+                disjoint = disjoint.union(v.eq.get_vars_side("right"))
+
+
+    def are_eq_sub(self, tmp: Set[StringEquation]) -> bool:
+        return tmp <= self.sub_eqs
+
+
+    def are_all_nontriv_sub(self) -> bool:
+        for v in self.vertices:
+            if len(v.succ) == 0:
+                continue
+            if not (v.eq in self.sub_eqs):
+                return False
+        return True
 
 
     def reduce(self):
         other_vars: dict[StringEquation, Set[str]] = defaultdict(lambda: set())
-        n_vert = []
-        proc = set()
 
         for v1 in self.vertices:
             for v2 in self.vertices:
                 if v1.eq == v2.eq:
                     continue
-                other_vars[v1.eq].union(v2.eq.get_vars())
+                other_vars[v1.eq] = other_vars[v1.eq].union(v2.eq.get_vars())
 
         for v in self.vertices:
-            if (len(v.eq.get_vars_side("right") & other_vars[v.eq]) == 0) and (not v.eq.more_occur_side("right")):
+            if v.eq.is_sub_equation():
                 v.succ = [s for s in v.succ if s.eq != v.eq.switched]
+
 
 
 
@@ -315,7 +344,7 @@ class StringEqGraph:
 
         ret = "digraph \"Equation\" { rankdir=LR; \n"
         ret += "{ rank = LR }\n"
-        ret += "node [shape = circle];\n"
+        ret += "node [shape = rectangle];\n"
         num: Dict[StringEquation, int] = dict()
 
         c = 0
