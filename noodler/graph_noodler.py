@@ -33,20 +33,17 @@ class GraphNoodler:
         @return stability
         """
 
-        Q = deque(self.graph.vertices)
-        visited = set()
+        subset = self.graph.are_all_nontriv_sub()
 
-        while len(Q) > 0:
-            node = Q.popleft()
-            visited.add(node.eq)
+        for v in self.graph.vertices:
+            if len(v.succ) == 0:
+                continue
 
-            aux = AutSingleSEQuery(node.eq, constr)
-            if not aux.is_balanced():
+            aux = AutSingleSEQuery(v.eq, constr)
+            if (not subset) and (not aux.is_balanced()):
                 return False
-
-            for s in node.succ:
-                if not s.eq in visited:
-                    Q.append(s)
+            if subset and (not aux.is_sub_balanced()):
+                return False
 
         return True
 
@@ -65,20 +62,32 @@ class GraphNoodler:
             if self.is_graph_stable(query):
                return True
 
+            if any(compare_aut_constraints(query, i) for i in cache[node.eq]):
+                continue
+            cache[node.eq].append(query)
+
             cur_query = AutSingleSEQuery(node.eq, query)
 
             noodler = SimpleNoodler(cur_query)
             noodles: Sequence[SingleSEQuery] = noodler.noodlify()
 
             for noodle in noodles:
+
                 cur_constraints: AutConstraints = query.copy()
                 cur_constraints.update(noodle.constraints)
 
-                if any(compare_aut_constraints(cur_constraints, i) for i in cache[node.eq]):
-                    continue
-
-                cache[node.eq].append(cur_constraints)
                 for s in node.succ:
                     Q.append((s, cur_constraints))
+
+
+
+        for v in self.graph.vertices:
+            print()
+            print("---------------------------------------------------")
+            print(v.eq)
+            for c in cache[v.eq]:
+                for var in v.eq.get_vars():
+                    print(var, c[var])
+            print()
 
         return False
