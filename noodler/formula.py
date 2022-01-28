@@ -28,6 +28,9 @@ from enum import Enum
 from dataclasses import dataclass
 from collections import defaultdict
 
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import connected_components
+
 import itertools
 
 
@@ -287,7 +290,7 @@ class StringConstraint:
 class StringEqNode:
     succ : Sequence["StringEqNode"]
     eq : StringEquation
-    sub : bool = False
+    id : int
 
 
 class StringEqGraph:
@@ -295,17 +298,19 @@ class StringEqGraph:
     def __init__(self, vert: Sequence[StringEqNode], eqs: Set[StringEquation]):
         self.vertices = vert
         self.equations = eqs
-        self.sub_eqs = set()
-        self._compute_sub_eqs()
+        #self.sub_eqs = set()
+        #self._compute_sub_eqs()
 
 
-    def _compute_sub_eqs(self):
-        self.sub_eqs = set()
+    def _compute_sub_eqs(self, vert):
+
+        ret = set()
         disjoint = set()
-        for v in self.vertices:
-            if v.eq.is_sub_equation() and len(disjoint & v.eq.get_vars_side("right")) == 0:
-                self.sub_eqs.add(v.eq)
-                disjoint = disjoint.union(v.eq.get_vars_side("right"))
+        for v in vert:
+            if v.is_sub_equation() and len(disjoint & v.get_vars_side("right")) == 0:
+                ret.add(v)
+                disjoint = disjoint.union(v.get_vars_side("right"))
+        return ret
 
 
     def are_eq_sub(self, tmp: Set[StringEquation]) -> bool:
@@ -320,6 +325,22 @@ class StringEqGraph:
                 return False
         return True
 
+    def get_sccs(self) -> Sequence[Sequence[StringEqNode]]:
+        n = len(self.vertices)
+        graph = [[0]*n for i in range(n)]
+        for v in self.vertices:
+            for vp in v.succ:
+                graph[vp.id][v.id] = 1
+
+        mtx = csr_matrix(graph)
+        k, labels = connected_components(csgraph=mtx, connection="strong", directed=True, return_labels=True)
+
+        scc = [[] for i in range(n)]
+        for i in range(n):
+            scc[labels[i]].append(self.vertices[i])
+
+        return scc
+
 
     def reduce(self):
         other_vars: dict[StringEquation, Set[str]] = defaultdict(lambda: set())
@@ -330,9 +351,28 @@ class StringEqGraph:
                     continue
                 other_vars[v1.eq] = other_vars[v1.eq].union(v2.eq.get_vars())
 
+        # for v in self.vertices:
+        #     if v.eq.is_sub_equation():
+        #         v.succ = [s for s in v.succ if s.eq != v.eq.switched]
+
         for v in self.vertices:
             if v.eq.is_sub_equation():
-                v.succ = [s for s in v.succ if s.eq != v.eq.switched]
+                succp = []
+                for prime in v.succ:
+                    if len(prime.eq.get_vars() & v.eq.get_vars_side("left")) == 0:
+                        continue
+                    succp.append(prime)
+                v.succ = succp
+
+
+        for scc in self.get_sccs():
+            rem = []
+            for s in scc:
+                if not s.eq.switched in rem:
+                    rem.append(s.eq)
+            if len(self._compute_sub_eqs(rem)) == len(rem):
+                for v in scc:
+                    v.succ = [s for s in v.succ if s.eq != v.eq.switched]
 
 
 

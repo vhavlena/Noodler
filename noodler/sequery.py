@@ -355,10 +355,12 @@ class MultiSEQuery:
 
         nodes: Dict[StringEquation, StringEqNode] = dict()
         all_nodes = []
+        c = 0
         for eq in self.equations:
-            nn: StringEqNode = StringEqNode([], eq)
+            nn: StringEqNode = StringEqNode([], eq, c)
             nodes[eq] = nn
             all_nodes.append(nn)
+            c += 1
 
         for eq in self.equations:
             for eqprime in self.equations:
@@ -368,9 +370,10 @@ class MultiSEQuery:
                     nodes[eq].succ.append(nodes[eqprime])
 
         for k, v in nodes.items():
-            nn: StringEqNode = StringEqNode([v], k.switched)
+            nn: StringEqNode = StringEqNode([v], k.switched, c)
             v.succ.append(nn)
             all_nodes.append(nn)
+            c += 1
 
         return StringEqGraph(all_nodes, set(self.equations))
 
