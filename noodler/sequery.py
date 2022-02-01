@@ -16,17 +16,16 @@ MultiSEQuery
 from typing import Sequence, Dict, Collection, Optional
 
 import awalipy
+import copy
 
 from .utils import show_automata
-from .algos import chain_automata, multiop
+from .algos import chain_automata, multiop, get_shortest_strings
 #types
 from .core import AutConstraints, Aut, Constraints, SegAut, RE
 # classes
 from .core import StringEquation, StringConstraint, ConstraintType
 # functions
 from .core import create_automata_constraints
-
-from .formula import StringEqGraph, StringEqNode
 
 
 DEFAULTALPHABET = "abc"
@@ -201,6 +200,13 @@ class AutSingleSEQuery(SingleSEQuery):
 
 
     def is_sub_balanced(self) -> bool:
+        """!
+        Check if the query is one side balanced.
+        query is balanced if the shortest strings of the first-side automaton
+        belong to the language of the second-side automaton.
+
+        @return Balanced?
+        """
 
         auts_l = self.automata_for_side("left")
         auts_r = self.automata_for_side("right")
@@ -208,11 +214,31 @@ class AutSingleSEQuery(SingleSEQuery):
         aut_l = multiop(auts_l, lambda x,y: x.concatenate(y))
         aut_r = multiop(auts_r, lambda x,y: x.concatenate(y))
 
+        tmp_l = aut_l.proper().minimal_automaton()
+        tmp_r = aut_r.proper().minimal_automaton()
+        short = get_shortest_strings(tmp_l)
 
-        comp = aut_r.minimal_automaton().complement()
-        tmp = aut_l.product(comp).trim()
+        for w in short:
+            if tmp_r.eval(w) == 0:
+                return False
+        return True
 
-        return len(tmp.useful_states()) == 0
+
+        # comp = aut_r.minimal_automaton().complement()
+        # tmp = aut_l.product(comp).trim()
+
+        # return len(tmp.useful_states()) == 0
+
+
+    def automaton_for_side(self, side: str) -> Aut:
+        """!
+        Get an automaton for a given side.
+
+        @param side: Side (left, right)
+        @return Concatenation of automata for a given side
+        """
+        auts_l = self.automata_for_side(side)
+        return multiop(auts_l, lambda x,y: x.concatenate(y))
 
 
     def is_balanced(self) -> bool:
@@ -220,7 +246,7 @@ class AutSingleSEQuery(SingleSEQuery):
         Check if query is balanced.
 
         query is balanced if automata representing both
-        sides recognize equivalent languages.
+        sides recognize equivalent shortest languages.
 
         Returns
         -------
@@ -232,7 +258,12 @@ class AutSingleSEQuery(SingleSEQuery):
         aut_l = multiop(auts_l, lambda x,y: x.concatenate(y))
         aut_r = multiop(auts_r, lambda x,y: x.concatenate(y))
 
-        return awalipy.are_equivalent(aut_l, aut_r)
+        tmp_l = aut_l.proper().minimal_automaton()
+        tmp_r = aut_r.proper().minimal_automaton()
+
+        return get_shortest_strings(tmp_l) == get_shortest_strings(tmp_r)
+
+        #return awalipy.are_equivalent(aut_l, aut_r)
 
     def show_constraints(self):
         show_automata(self.constraints)
@@ -349,34 +380,6 @@ class MultiSEQuery:
 
     def __repr__(self) -> str:
         return str(self)
-
-
-    def get_eqs_graph(self) -> StringEqGraph:
-
-        nodes: Dict[StringEquation, StringEqNode] = dict()
-        all_nodes = []
-        c = 0
-        for eq in self.equations:
-            nn: StringEqNode = StringEqNode([], eq, c)
-            nodes[eq] = nn
-            all_nodes.append(nn)
-            c += 1
-
-        for eq in self.equations:
-            for eqprime in self.equations:
-                if eqprime == eq:
-                    continue
-                if len(eqprime.get_vars() & eq.get_vars()) != 0:
-                    nodes[eq].succ.append(nodes[eqprime])
-
-        for k, v in nodes.items():
-            nn: StringEqNode = StringEqNode([v], k.switched, c)
-            v.succ.append(nn)
-            all_nodes.append(nn)
-            c += 1
-
-        return StringEqGraph(all_nodes, set(self.equations))
-
 
 
 

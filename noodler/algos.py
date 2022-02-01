@@ -11,10 +11,12 @@ Public functions
 * split_segment_aut: split segment automaton into segments
 * single_final_init: restrict numbers of initial and final states to 1
 """
-from typing import Callable, Sequence, Dict
+from typing import Callable, Sequence, Dict, Set
 
 import awalipy
 import ast
+import copy
+from collections import defaultdict
 
 from .core import Aut, SegAut, TransID
 
@@ -50,6 +52,50 @@ def multiop(automata: Sequence[Aut],
         res = operation(res, aut)
 
     return res
+
+
+def get_shortest_strings(aut: Aut) -> Set[str]:
+    """!
+    Get shortest strings (regarding their length) of a given automaton.
+
+    @param aut: Automaton
+    @return Set of shortest strings
+    """
+
+    short = defaultdict(lambda: (-1, set()))
+
+    concat = lambda x, s: set([ x + u for u in s ])
+
+    for fin in aut.final_states():
+        short[fin] = (0, set([""]))
+
+    changed = True
+    while changed:
+        changed = False
+        for tr in aut.transitions():
+            orig_l, orig_w = short[aut.src_of(tr)]
+            act_l, act_w = orig_l, copy.deepcopy(orig_w)
+            dst_l, dst_w = short[aut.dst_of(tr)]
+
+            if act_l == -1:
+                label = awali_to_string(aut.label_of(tr))
+                act_w = concat(label, dst_w)
+                act_l = dst_l + 1
+            elif dst_l + 1 < dst_l:
+                label = awali_to_string(aut.label_of(tr))
+                act_w = concat(label, dst_w)
+                act_l = dst_l + 1
+            elif dst_l + 1 == act_l:
+                label = awali_to_string(aut.label_of(tr))
+                act_w.union(concat(label, dst_w))
+                act_l = dst_l + 1
+            if orig_w != act_w:
+                short.update([(aut.src_of(tr), (act_l, act_w))])
+                short[aut.src_of(tr)] = act_l, act_w
+                changed = True
+
+    assert(len(aut.initial_states()) == 1)
+    return short[aut.initial_states()[0]][1]
 
 
 def equivalent_all(auts: Sequence[Aut]) -> bool:
@@ -138,6 +184,12 @@ def chain_automata(automata: Sequence[Aut]) -> SegAut:
     return res
 
 
+def awali_to_string(str):
+    alp = str.replace("\\0x0", "\\x")
+    alp = ast.parse("\""+alp+"\"")
+    return alp.body[0].value.value
+
+
 # noinspection PyIncorrectDocstring
 def eps_preserving_product(aut_l: SegAut,
                            aut_r: Aut,
@@ -176,9 +228,7 @@ def eps_preserving_product(aut_l: SegAut,
     todo = []
 
     alphabet = aut_l.alphabet()
-    alphabet = alphabet.replace("\\0x0", "\\x")
-    alp = ast.parse("\""+alphabet+"\"")
-    alphabet = alp.body[0].value.value
+    alphabet = awali_to_string(alphabet)
 
     new_aut = awalipy.Automaton(alphabet)
     new_aut.allow_eps_transition_here()

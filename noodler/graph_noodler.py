@@ -10,7 +10,7 @@ from .sequery import AutSingleSEQuery, SingleSEQuery, MultiSEQuery
 # Types
 from .core import Aut, AutConstraints, SegAut
 
-from .formula import StringEqNode, StringEqGraph
+from .graph_formula import StringEqNode, StringEqGraph
 from .algos import eps_preserving_product, eps_segmentation, multiop, single_final_init, split_segment_aut
 from .noodler import noodlify, noodlify_query, create_unified_query, is_unified, SimpleNoodler
 

@@ -131,23 +131,38 @@ class StringEquation:
 
 
     def get_vars(self) -> Set[str]:
+        """!
+        Get variables of the equation
+        """
         return set(self.left) | set(self.right)
 
 
     def get_vars_side(self, side: str) -> Set[str]:
+        """!
+        Get variables of the equation for a give side (left/right)
+        """
         if side == "left":
             return set(self.left)
         return set(self.right)
 
 
     def more_occur_side(self, side: str) -> bool:
+        """!
+        Is there any variable occurring multiple times on a given side?
+        """
         if side == "left":
             return len(set(self.left)) != len(self.left)
         return len(set(self.right)) != len(self.right)
 
 
-    def is_sub_equation(self) -> bool:
-        return (not self.more_occur_side("right")) and (len(self.get_vars_side("right") & self.get_vars_side("left")) == 0)
+    def is_straightline(self) -> bool:
+        """!
+        Is the equation of the form Xn = X1 X2 ... X(n-1)
+        """
+
+        if not len(self.get_vars_side("right") & self.get_vars_side("left")) == 0:
+            return False
+        return len(self.get_side("left")) == 1 or len(self.get_side("right")) == 1
 
 
     def __str__(self):
@@ -284,117 +299,3 @@ class StringConstraint:
         for i in range(1, len(lst)):
             act = StringConstraint(type, act, lst[i])
         return act
-
-
-@dataclass
-class StringEqNode:
-    succ : Sequence["StringEqNode"]
-    eq : StringEquation
-    id : int
-
-
-class StringEqGraph:
-
-    def __init__(self, vert: Sequence[StringEqNode], eqs: Set[StringEquation]):
-        self.vertices = vert
-        self.equations = eqs
-        #self.sub_eqs = set()
-        #self._compute_sub_eqs()
-
-
-    def _compute_sub_eqs(self, vert):
-
-        ret = set()
-        disjoint = set()
-        for v in vert:
-            if v.is_sub_equation() and len(disjoint & v.get_vars_side("right")) == 0:
-                ret.add(v)
-                disjoint = disjoint.union(v.get_vars_side("right"))
-        return ret
-
-
-    def are_eq_sub(self, tmp: Set[StringEquation]) -> bool:
-        return tmp <= self.sub_eqs
-
-
-    def are_all_nontriv_sub(self) -> bool:
-        for v in self.vertices:
-            if len(v.succ) == 0:
-                continue
-            if not (v.eq in self.sub_eqs):
-                return False
-        return True
-
-    def get_sccs(self) -> Sequence[Sequence[StringEqNode]]:
-        n = len(self.vertices)
-        graph = [[0]*n for i in range(n)]
-        for v in self.vertices:
-            for vp in v.succ:
-                graph[vp.id][v.id] = 1
-
-        mtx = csr_matrix(graph)
-        k, labels = connected_components(csgraph=mtx, connection="strong", directed=True, return_labels=True)
-
-        scc = [[] for i in range(n)]
-        for i in range(n):
-            scc[labels[i]].append(self.vertices[i])
-
-        return scc
-
-
-    def reduce(self):
-        other_vars: dict[StringEquation, Set[str]] = defaultdict(lambda: set())
-
-        for v1 in self.vertices:
-            for v2 in self.vertices:
-                if v1.eq == v2.eq:
-                    continue
-                other_vars[v1.eq] = other_vars[v1.eq].union(v2.eq.get_vars())
-
-        # for v in self.vertices:
-        #     if v.eq.is_sub_equation():
-        #         v.succ = [s for s in v.succ if s.eq != v.eq.switched]
-
-        for v in self.vertices:
-            if v.eq.is_sub_equation():
-                succp = []
-                for prime in v.succ:
-                    if len(prime.eq.get_vars() & v.eq.get_vars_side("left")) == 0:
-                        continue
-                    succp.append(prime)
-                v.succ = succp
-
-
-        for scc in self.get_sccs():
-            rem = []
-            for s in scc:
-                if not s.eq.switched in rem:
-                    rem.append(s.eq)
-            if len(self._compute_sub_eqs(rem)) == len(rem):
-                for v in scc:
-                    v.succ = [s for s in v.succ if s.eq != v.eq.switched]
-
-
-
-
-    def to_graphwiz(self):
-        """!
-        Convert the graph into the DOT format.
-        """
-
-        ret = "digraph \"Equation\" { rankdir=LR; \n"
-        ret += "{ rank = LR }\n"
-        ret += "node [shape = rectangle];\n"
-        num: Dict[StringEquation, int] = dict()
-
-        c = 0
-        for eq in self.vertices:
-            num[eq.eq] = c
-            ret += "\"{0}\" [label=\"{1}\"]\n".format(c, eq.eq)
-            c = c + 1
-
-        for eq in self.vertices:
-            for s in eq.succ:
-                ret += "\"{0}\" -> \"{1}\";\n".format(num[eq.eq], num[s.eq])
-        ret += "}\n";
-        return ret
