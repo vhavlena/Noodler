@@ -9,6 +9,7 @@ from scipy.sparse.csgraph import connected_components
 
 from .core import StringEquation
 from .sequery import AutSingleSEQuery, SingleSEQuery, MultiSEQuery
+from .formula import StringConstraint, ConstraintType
 
 import itertools
 import copy
@@ -21,6 +22,7 @@ class StringEqNode:
     Node with an equation
     """
     succ : Sequence["StringEqNode"]
+    eval_formula : StringConstraint
     eq : StringEquation
     id : int
 
@@ -49,13 +51,14 @@ class StringEqGraph:
         vert_n = []
         nodes: Dict[StringEquation, StringEqNode] = dict()
         for v in self.vertices:
-            nn: StringEqNode = StringEqNode([], v.eq, v.id)
+            nn: StringEqNode = StringEqNode([], StringConstraint(ConstraintType.TRUE), v.eq, v.id)
             nodes[v.eq] = nn
             vert_n.append(nn)
 
         for v in self.vertices:
             for s in v.succ:
                 nodes[v.eq].succ.append(nodes[s.eq])
+            nodes[v.eq].eval_formula = copy.copy(v.eval_formula)
 
         return StringEqGraph(vert_n)
 
@@ -80,6 +83,13 @@ class StringEqGraph:
                     continue
                 tmp.append(s)
             v.succ = tmp
+
+            print("-----------------------------------------------")
+            print(v.eq, restr)
+            print(v.eval_formula)
+            v.eval_formula = v.eval_formula.restrict_eq(restr)
+            print(v.eval_formula)
+
         self.vertices = vert_n
 
 
@@ -184,6 +194,7 @@ class StringEqGraph:
                     continue
                 succp.append(prime)
             v.succ = succp
+            v.eval_formula = v.eval_formula.restrict_eq(set([x.eq for x in succp]))
 
         for scc in cp.get_sccs():
             if len(scc) > 1:
@@ -199,7 +210,7 @@ class StringEqGraph:
         @return DOT format
         """
 
-        ret = "digraph \"Equation\" { rankdir=LR; \n"
+        ret = "digraph \"Equation\" { rankdir=LR; \n forcelabels=true\n"
         ret += "{ rank = LR }\n"
         ret += "node [shape = rectangle];\n"
         num: Dict[StringEquation, int] = dict()
@@ -207,7 +218,7 @@ class StringEqGraph:
         c = 0
         for eq in self.vertices:
             num[eq.eq] = c
-            ret += "\"{0}\" [label=\"{1}\"]\n".format(c, eq.eq)
+            ret += "\"{0}\" [label=\"{1}\", xlabel=\"{2}\"]\n".format(c, eq.eq, eq.eval_formula)
             c = c + 1
 
         for eq in self.vertices:
@@ -232,9 +243,9 @@ class StringEqGraph:
         c = 0
         for clause in equations:
             for eq in clause:
-                nn: StringEqNode = StringEqNode([], eq, c)
+                nn: StringEqNode = StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, c)
                 nodes[eq] = nn
-                nnpr: StringEqNode = StringEqNode([], eq.switched, c+1)
+                nnpr: StringEqNode = StringEqNode([], StringConstraint(ConstraintType.TRUE), eq.switched, c+1)
                 nodes[eq.switched] = nnpr
                 nn.succ.append(nnpr)
                 nnpr.succ.append(nn)
@@ -246,9 +257,17 @@ class StringEqGraph:
             for clause in equations:
                 if v1.eq in clause or v1.eq.switched in clause:
                     continue
+                fl_clause = []
                 for v2 in clause:
                     if len(v1.eq.get_vars() & v2.get_vars()) != 0:
                         v1.succ.append(nodes[v2])
                         v1.succ.append(nodes[v2.switched])
+
+                        fl = StringConstraint(ConstraintType.AND, StringConstraint(ConstraintType.EQ, v2), StringConstraint(ConstraintType.EQ, v2.switched))
+                        fl_clause.append(fl)
+
+                if len(fl_clause) > 0:
+                    v1.eval_formula = StringConstraint(ConstraintType.AND, v1.eval_formula, StringConstraint.build_op(ConstraintType.OR, fl_clause))
+
 
         return StringEqGraph(all_nodes)
