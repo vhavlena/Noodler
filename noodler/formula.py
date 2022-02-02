@@ -39,6 +39,8 @@ class ConstraintType(Enum):
     AND = 1
     OR = 2
     RE = 3
+    TRUE = 4
+    FALSE = 5
 
 
 class StringEquation:
@@ -180,7 +182,7 @@ class StringConstraint:
     equations.
     """
 
-    def __init__(self, tp: ConstraintType, left_side: "StringConstraint", right_side: "StringConstraint" = None):
+    def __init__(self, tp: ConstraintType, left_side: "StringConstraint" = None, right_side: "StringConstraint" = None):
         """!
         Create a string constraint. Currently supported types of constraints
         include positive combination of regular expressions and equations.
@@ -195,6 +197,9 @@ class StringConstraint:
 
 
     def is_eq_restr(self) -> bool:
+        """!
+        Check if the formula is a conjunction of equation with a regular constraint
+        """
         if self.op == ConstraintType.AND:
             if self.left.op == ConstraintType.EQ and self.right.op == ConstraintType.RE:
                 return True
@@ -202,15 +207,23 @@ class StringConstraint:
 
 
     def is_cnf(self) -> bool:
+        """!
+        Check if the formula is in CNF
+        """
         for con in self.gather_op(ConstraintType.AND):
             for lf in con.gather_op(ConstraintType.OR):
-                print(lf)
-                if lf.op != ConstraintType.EQ and lf.op != ConstraintType.RE and not lf.is_eq_restr():
+                if not lf.is_leaf() and not lf.is_eq_restr():
                     return False
         return True
 
 
     def get_cnf_list(self) -> Optional[Sequence[Sequence[StringEquation]]]:
+        """!
+        Get clauses of the formula in CNF in a list (the regular constraints
+        are omited).
+
+        @return List of clauses (list) containing only equations
+        """
         ret = []
         for con in self.gather_op(ConstraintType.AND):
             lst = []
@@ -221,6 +234,8 @@ class StringConstraint:
                     lst.append(lf.left)
                 elif lf.is_eq_restr():
                     lst.append(lf.left.left)
+                elif lf.op in [ConstraintType.TRUE, ConstraintType.FALSE]:
+                    continue
                 else:
                     return None
             if len(lst) > 0:
@@ -234,7 +249,7 @@ class StringConstraint:
 
         @return Equivalent string constraint in DNF
         """
-        if self.op == ConstraintType.EQ or self.op == ConstraintType.RE:
+        if self.is_leaf():
             return self
 
         left_tmp = self.left.to_dnf()
@@ -280,6 +295,8 @@ class StringConstraint:
             return self.left.get_vars()
         if self.op == ConstraintType.RE:
             return set(self.left.keys())
+        if self.op in [ConstraintType.TRUE, ConstraintType.FALSE]:
+            return set()
 
         left_lst = self.left.get_vars()
         right_lst = self.right.get_vars()
@@ -296,6 +313,10 @@ class StringConstraint:
             return "EQ: " + str(self.left)
         if self.op == ConstraintType.RE:
             return "RE: " + str(self.left)
+        if self.op == ConstraintType.TRUE:
+            return "TRUE"
+        if self.op == ConstraintType.FALSE:
+            return "FALSE"
         if self.op == ConstraintType.AND:
             return "({0} AND {1})".format(str(self.left), str(self.right))
         if self.op == ConstraintType.OR:
@@ -312,11 +333,57 @@ class StringConstraint:
         """
         if self.op == type:
             return [self]
-        if self.op == ConstraintType.EQ or self.op == ConstraintType.RE:
+        if self.is_leaf():
             return []
         left_lst = self.left.gather_leafs(type)
         right_lst = self.right.gather_leafs(type)
         return left_lst + right_lst
+
+
+    def is_leaf(self) -> bool:
+        """!
+        Is the formula an atomic formula?
+        """
+        return self.op in [ConstraintType.EQ, ConstraintType.RE, ConstraintType.TRUE, ConstraintType.FALSE]
+
+
+    def restrict_eq(self, eqs: Set[StringEquation]) -> "StringConstraint":
+        """!
+        Restrict the equation only to equations from eqs.
+
+        @param eqs: Equations that are kept
+        @return Formula keeping atomic equations from eqs.
+        """
+        fl = self._restrict_eq(eqs)
+        if fl is None:
+            return StringConstraint(ConstraintType.TRUE)
+        return fl
+
+
+    def _restrict_eq(self, eqs: Set[StringEquation]) -> Optional["StringConstraint"]:
+        """!
+        Restrict the equation only to equations from eqs -- Auxiliary method.
+
+        @param eqs: Equations that are kept
+        @return Formula keeping atomic equations from eqs or None.
+        """
+        if self.op == ConstraintType.EQ:
+            if self.left in eqs:
+                return self
+            return None
+        elif self.is_leaf():
+            return None
+
+        left = self.left._restrict_eq(eqs)
+        right = self.right._restrict_eq(eqs)
+        if left is not None and right is not None:
+            return StringConstraint(self.op, left, right)
+        elif left is not None and right is None:
+            return left
+        elif left is None and right is not None:
+            return right
+        else:
+            return None
 
 
     def __repr__(self):
