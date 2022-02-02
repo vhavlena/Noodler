@@ -171,7 +171,7 @@ class StringEqGraph:
         eqs = set()
         for v in cp.vertices:
             if v.eq.is_straightline():
-                if len(v.eq.get_side("right")) == 1:
+                if not v.eq.switched in eqs and len(v.eq.get_side("left")) == 1:
                     eqs.add(v.eq)
             else:
                 return None
@@ -180,7 +180,7 @@ class StringEqGraph:
         for v in cp.vertices:
             succp = []
             for prime in v.succ:
-                if len(v.eq.get_vars() & prime.eq.get_vars_side("right")) == 0:
+                if len(v.eq.get_vars() & prime.eq.get_vars_side("left")) == 0:
                     continue
                 succp.append(prime)
             v.succ = succp
@@ -218,7 +218,7 @@ class StringEqGraph:
 
 
     @staticmethod
-    def get_eqs_graph(equations: Sequence[StringEquation]) -> "StringEqGraph":
+    def get_eqs_graph(equations: Sequence[Sequence[StringEquation]]) -> "StringEqGraph":
         """!
         Get graph of equations. Each node is an equation. We distinguish L=R and
         R=L. Two equations are adjacent if they share a variable.
@@ -230,20 +230,25 @@ class StringEqGraph:
         nodes: Dict[StringEquation, StringEqNode] = dict()
         all_nodes = []
         c = 0
-        for eq in equations:
-            nn: StringEqNode = StringEqNode([], eq, c)
-            nodes[eq] = nn
-            nnpr: StringEqNode = StringEqNode([], eq.switched, c+1)
-            nodes[eq.switched] = nnpr
-            all_nodes.append(nn)
-            all_nodes.append(nnpr)
-            c += 2
+        for clause in equations:
+            for eq in clause:
+                nn: StringEqNode = StringEqNode([], eq, c)
+                nodes[eq] = nn
+                nnpr: StringEqNode = StringEqNode([], eq.switched, c+1)
+                nodes[eq.switched] = nnpr
+                nn.succ.append(nnpr)
+                nnpr.succ.append(nn)
+                all_nodes.append(nn)
+                all_nodes.append(nnpr)
+                c += 2
 
         for v1 in all_nodes:
-            for v2 in all_nodes:
-                if v1.eq == v2.eq:
+            for clause in equations:
+                if v1.eq in clause or v1.eq.switched in clause:
                     continue
-                if len(v1.eq.get_vars() & v2.eq.get_vars()) != 0:
-                    v1.succ.append(v2)
+                for v2 in clause:
+                    if len(v1.eq.get_vars() & v2.get_vars()) != 0:
+                        v1.succ.append(nodes[v2])
+                        v1.succ.append(nodes[v2.switched])
 
         return StringEqGraph(all_nodes)

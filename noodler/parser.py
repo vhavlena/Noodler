@@ -305,7 +305,10 @@ class SmtlibParser:
         res_left = z3_concat_to_var_list(left)
         res_right = z3_concat_to_var_list(right)
         constr = StringConstraint(ConstraintType.RE, aux_vars)
-        return StringConstraint(ConstraintType.AND, StringConstraint(ConstraintType.EQ, StringEquation(list(res_left), list(res_right))), constr)
+        eq = StringConstraint(ConstraintType.EQ, StringEquation(list(res_left), list(res_right)))
+        if len(aux_vars) == 0:
+            return eq
+        return StringConstraint(ConstraintType.AND, eq, constr)
 
     def parse_re_constraint(self, ref: z3.BoolRef) -> REConstraints:
         """
@@ -361,8 +364,8 @@ class SmtlibParser:
         @param ref: z3.BoolRef
         @return StringConstraint instance
         """
-        if is_assignment(ref):
-            return self.process_assignment(ref)
+        # if is_assignment(ref):
+        #     return self.process_assignment(ref)
 
         if is_equation(ref):
             return self.parse_equation(ref)

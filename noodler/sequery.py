@@ -419,7 +419,22 @@ class StringConstraintQuery:
         return res
 
 
-    def get_sequeries(self) -> Sequence[MultiSEQuery]:
+    def _gather_aut_constraints(self) -> AutConstraints:
+        constr = [create_automata_constraints(c.left) for c in self.constraint.gather_leafs(ConstraintType.RE)]
+        constr_dict = StringConstraintQuery._merge_constraints(constr)
+        vars = self.constraint.get_vars()
+
+        sigma_star: RE = awalipy_allchar(self.alphabet).star()
+        for var in vars:
+            constr_dict.setdefault(var, awalipy.Automaton(sigma_star).proper().minimal_automaton().trim())
+        return constr_dict
+
+
+    def get_queries_cnf(self):
+        return self.constraint.get_cnf_list(), self._gather_aut_constraints()
+
+
+    def get_sequeries_dnf(self) -> Sequence[MultiSEQuery]:
         """!
         Get subqueries for solving of the string constraint.
 

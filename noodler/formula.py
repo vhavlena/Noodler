@@ -23,7 +23,7 @@ TransID : int
     ID of transition in automaton
 """
 
-from typing import Dict, Type, Union, Sequence, Set
+from typing import Dict, Type, Union, Sequence, Set, Optional
 from enum import Enum
 from dataclasses import dataclass
 from collections import defaultdict
@@ -194,6 +194,40 @@ class StringConstraint:
         self.right = right_side
 
 
+    def is_eq_restr(self) -> bool:
+        if self.op == ConstraintType.AND:
+            if self.left.op == ConstraintType.EQ and self.right.op == ConstraintType.RE:
+                return True
+        return False
+
+
+    def is_cnf(self) -> bool:
+        for con in self.gather_op(ConstraintType.AND):
+            for lf in con.gather_op(ConstraintType.OR):
+                print(lf)
+                if lf.op != ConstraintType.EQ and lf.op != ConstraintType.RE and not lf.is_eq_restr():
+                    return False
+        return True
+
+
+    def get_cnf_list(self) -> Optional[Sequence[Sequence[StringEquation]]]:
+        ret = []
+        for con in self.gather_op(ConstraintType.AND):
+            lst = []
+            for lf in con.gather_op(ConstraintType.OR):
+                if lf.op == ConstraintType.RE:
+                    continue
+                elif lf.op == ConstraintType.EQ:
+                    lst.append(lf.left)
+                elif lf.is_eq_restr():
+                    lst.append(lf.left.left)
+                else:
+                    return None
+            if len(lst) > 0:
+                ret.append(lst)
+        return ret
+
+
     def to_dnf(self) -> "StringConstraint":
         """!
         Convert a string constraint to DNF.
@@ -258,8 +292,10 @@ class StringConstraint:
 
         @return: String representation
         """
-        if self.op == ConstraintType.EQ or self.op == ConstraintType.RE:
-            return str(self.left)
+        if self.op == ConstraintType.EQ:
+            return "EQ: " + str(self.left)
+        if self.op == ConstraintType.RE:
+            return "RE: " + str(self.left)
         if self.op == ConstraintType.AND:
             return "({0} AND {1})".format(str(self.left), str(self.right))
         if self.op == ConstraintType.OR:
