@@ -26,13 +26,22 @@ class StringEqNode:
     eq : StringEquation
     id : int
 
+    def __eq__(self, other):
+        if not isinstance(other, StringEqNode):
+            return False
+
+        if self.eq != other.eq or self.id != other.id:
+            return False
+
+        return { p.eq for p in self.succ } == { p.eq for p in other.succ }
+
 
 class StringEqGraph:
     """!
     Graph of equations
     """
 
-    def __init__(self, vert: Sequence[StringEqNode], ini: Set[StringEquation], fin: Set[StringEquation]):
+    def __init__(self, vert: Sequence[StringEqNode], ini: Sequence[StringEqNode], fin: Sequence[StringEqNode]):
         """!
         Constructior
 
@@ -41,7 +50,6 @@ class StringEqGraph:
         self.vertices = vert
         self.initials = ini
         self.finals = fin
-
 
     def copy(self) -> "StringEqGraph":
         """!
@@ -62,7 +70,10 @@ class StringEqGraph:
                 nodes[v.eq].succ.append(nodes[s.eq])
             nodes[v.eq].eval_formula = copy.copy(v.eval_formula)
 
-        return StringEqGraph(vert_n, copy.copy(self.initials), copy.copy(self.finals))
+        ini = [nodes[v.eq] for v in self.initials]
+        fin = [nodes[v.eq] for v in self.finals]
+
+        return StringEqGraph(vert_n, ini, fin)
 
 
     def subgraph(self, restr: Set[StringEquation]) -> None:
@@ -174,11 +185,17 @@ class StringEqGraph:
         """
 
         cp = self.copy()
-        # Assumes no equations of the form X = Y
+        var_order = defaultdict(lambda: 0)
+
+        c = 1
         eqs = set()
         for v in cp.vertices:
             if v.eq.is_straightline():
                 if not v.eq.switched in eqs and len(v.eq.get_side("left")) == 1:
+                    var_order[v.eq.get_side("left")[0]] = c
+                    if c <= max([var_order[x] for x in v.eq.get_vars_side("right")]):
+                        return None
+                    c += 1
                     eqs.add(v.eq)
             else:
                 return None
@@ -187,7 +204,7 @@ class StringEqGraph:
         for v in cp.vertices:
             succp = []
             for prime in v.succ:
-                if len(v.eq.get_vars() & prime.eq.get_vars_side("left")) == 0:
+                if var_order[v.eq.get_side("left")[0]] < var_order[prime.eq.get_side("left")[0]]:
                     continue
                 succp.append(prime)
             v.succ = succp
@@ -198,12 +215,16 @@ class StringEqGraph:
                 return None
 
         not_ini = set()
-        cp.finals = set()
+        cp.finals = []
         for v in cp.vertices:
             not_ini = not_ini.union(set([c.eq for c in v.succ]))
             if len(v.succ) == 0:
-                cp.finals.add(v.eq)
-        cp.initials = set([c.eq for c in cp.vertices]) - not_ini
+                cp.finals.append(v)
+        cp.initials = [c for c in cp.vertices if c.eq not in not_ini]
+
+        for v in cp.vertices:
+            v.eq = v.eq.switched
+            v.eval_formula.rename_eq(lambda x: x.switched)
 
         return cp
 
@@ -225,9 +246,9 @@ class StringEqGraph:
             num[eq.eq] = c
 
             attr = ""
-            if eq.eq in self.initials:
+            if eq in self.initials:
                 attr += ", color=red"
-            if eq.eq in self.finals:
+            if eq in self.finals:
                 attr += ", style=filled, fillcolor=lightgreen"
 
             ret += "\"{0}\" [label=\"{1}\", xlabel=\"{2}\"{3}]\n".format(c, eq.eq, eq.eval_formula, attr)
@@ -250,40 +271,42 @@ class StringEqGraph:
         @return String Equation Graph
         """
 
-        nodes: Dict[StringEquation, StringEqNode] = dict()
-        all_nodes = []
-        c = 0
-        for clause in equations:
-            for eq in clause:
-                nn: StringEqNode = StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, c)
-                nodes[eq] = nn
-                nnpr: StringEqNode = StringEqNode([], StringConstraint(ConstraintType.TRUE), eq.switched, c+1)
-                nodes[eq.switched] = nnpr
-                nn.succ.append(nnpr)
-                nnpr.succ.append(nn)
-                all_nodes.append(nn)
-                all_nodes.append(nnpr)
-                c += 2
-
-        ini = set()
-        fin = set()
-        for v1 in all_nodes:
-            ini.add(v1.eq)
-            fin.add(v1.eq)
-            for clause in equations:
-                if v1.eq in clause or v1.eq.switched in clause:
-                    continue
-                fl_clause = []
-                for v2 in clause:
-                    if len(v1.eq.get_vars() & v2.get_vars()) != 0:
-                        v1.succ.append(nodes[v2])
-                        v1.succ.append(nodes[v2.switched])
-
-                        fl = StringConstraint(ConstraintType.AND, StringConstraint(ConstraintType.EQ, v2), StringConstraint(ConstraintType.EQ, v2.switched))
+        def join_succ(eqs_sw, eqs_lst, nodes):
+            for i in range(len(eqs_sw)-1):
+                for eq_prev in eqs_sw[i]:
+                    fl_clause = []
+                    for eq_succ in eqs_lst[i+1]:
+                        nodes[eq_prev].succ.append(nodes[eq_succ])
+                        nodes[eq_prev].succ.append(nodes[eq_succ.switched])
+                        fl = StringConstraint(ConstraintType.AND, StringConstraint(ConstraintType.EQ, eq_succ), StringConstraint(ConstraintType.EQ, eq_succ.switched))
                         fl_clause.append(fl)
 
-                if len(fl_clause) > 0:
-                    v1.eval_formula = StringConstraint(ConstraintType.AND, v1.eval_formula, StringConstraint.build_op(ConstraintType.OR, fl_clause))
+                    if len(fl_clause) > 0:
+                        nodes[eq_prev].eval_formula = StringConstraint(ConstraintType.AND, nodes[eq_prev].eval_formula, StringConstraint.build_op(ConstraintType.OR, fl_clause))
 
+        nodes: Dict[StringEquation, StringEqNode] = dict()
+        all_nodes = []
+        eqs_switch = []
+        eqs = []
+        for clause in equations:
 
-        return StringEqGraph(all_nodes, ini, fin)
+            cl = []
+            for eq in clause:
+                cl.append(eq)
+                cl.append(eq.switched)
+            eqs += cl
+            eqs_switch.append(cl)
+
+        nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
+        all_nodes = [ nodes[eq] for eq in eqs]
+
+        for eq in eqs:
+            nodes[eq].succ.append(nodes[eq.switched])
+            nodes[eq].eval_formula = StringConstraint(ConstraintType.EQ, eq)
+
+        join_succ(eqs_switch, equations, nodes)
+        eqs_switch.reverse()
+        equations.reverse()
+        join_succ(eqs_switch, equations, nodes)
+
+        return StringEqGraph(all_nodes, list(nodes.values()), list(nodes.values()))
