@@ -25,7 +25,7 @@ class GraphNoodler:
         self.graph = vert
 
 
-    def is_graph_stable(self, constr: AutConstraints):
+    def is_graph_stable(self, constr: AutConstraints, straight_line: bool):
         """!
         Is a graph of string equations stable (=each node is stable)?
 
@@ -33,37 +33,54 @@ class GraphNoodler:
         @return stability
         """
 
-        subset = self.graph.are_all_nontriv_sub()
+        def _check_sat():
+            changed = True
+            while changed:
+                changed = False
+                for v in self.graph.vertices:
+                    val = sat[v.eq]
+                    if not val:
+                        continue
+                    sat[v.eq] = val and v.eval_formula.eval(sat)
+                    if sat[v.eq] != val:
+                        changed = True
+
+
+        sat: Dict[StringEquation, bool] = dict()
+
+
+        if straight_line:
+            return all(len(v.useful_states()) > 0 for k, v in constr.items())
+
 
         for v in self.graph.vertices:
-            if len(v.succ) == 0:
-                continue
-
             aux = AutSingleSEQuery(v.eq, constr)
-            if (not subset) and (not aux.is_balanced()):
-                return False
-            if subset and (not aux.is_sub_balanced()):
-                return False
+            sat[v.eq] = aux.is_sub_balanced()
 
-        return True
+        _check_sat()
+        for ini in self.graph.initials:
+            if sat[ini.eq]:
+                return True
+        return False
 
 
     def is_sat(self):
 
+        if len(self.graph.vertices) == 0:
+            return self.is_graph_stable(self.aut_constr, True)
+
         cache: Dict[StringEquation, Sequence[AutConstraints]] = defaultdict(lambda: [])
+        fin_eq = { c.eq for c in self.graph.finals }
 
         Q = deque([])
-        for node in self.graph.vertices:
+        for node in self.graph.initials:
             Q.append((node, self.aut_constr))
 
         while len(Q) > 0:
-
             node, query = Q.popleft()
-            if self.is_graph_stable(query):
-               return True
 
-            if any(compare_aut_constraints(query, i) for i in cache[node.eq]):
-                continue
+            # if any(compare_aut_constraints(query, i) for i in cache[node.eq]):
+            #     continue
             cache[node.eq].append(query)
 
             cur_query = AutSingleSEQuery(node.eq, query)
@@ -72,22 +89,13 @@ class GraphNoodler:
             noodles: Sequence[SingleSEQuery] = noodler.noodlify()
 
             for noodle in noodles:
-
                 cur_constraints: AutConstraints = query.copy()
                 cur_constraints.update(noodle.constraints)
 
+                if node.eq in fin_eq and self.is_graph_stable(cur_constraints, True):
+                   return True
+
                 for s in node.succ:
                     Q.append((s, cur_constraints))
-
-
-
-        for v in self.graph.vertices:
-            print()
-            print("---------------------------------------------------")
-            print(v.eq)
-            for c in cache[v.eq]:
-                for var in v.eq.get_vars():
-                    print(var, c[var])
-            print()
 
         return False

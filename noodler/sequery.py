@@ -219,14 +219,14 @@ class AutSingleSEQuery(SingleSEQuery):
         short = get_shortest_strings(tmp_l)
 
         for w in short:
-            if tmp_r.eval(w) == 0:
+            if int(tmp_r.eval(w)) == 0:
                 return False
         return True
 
 
         # comp = aut_r.minimal_automaton().complement()
         # tmp = aut_l.product(comp).trim()
-
+        #
         # return len(tmp.useful_states()) == 0
 
 

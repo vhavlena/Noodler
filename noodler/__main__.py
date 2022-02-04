@@ -4,8 +4,10 @@ import z3
 
 from .core import is_straightline
 from .parser import SmtlibParserHackAbc
-from .noodler import StraightlineNoodleMachine
-from .sequery import StringConstraintQuery
+from .noodler import StraightlineNoodleMachine, QueueNoodler
+from .sequery import StringConstraintQuery, AutSingleSEQuery
+from .graph_noodler import GraphNoodler
+from .graph_formula import StringEqGraph
 
 
 def main(args: argparse.Namespace):
@@ -14,9 +16,23 @@ def main(args: argparse.Namespace):
 
     try:
         smt_parser = SmtlibParserHackAbc(filename)
-        q = smt_parser.parse_query()
+
+        q: StringConstraint = smt_parser.parse_query()
+        if not q.is_cnf():
+            raise Exception("Constraint must be in CNF")
+
         scq = StringConstraintQuery(q, smt_parser.alphabet_str)
-        multiquery = scq.get_sequeries()
+        cnf, aut = scq.get_queries_cnf()
+        cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
+
+        graph = StringEqGraph.get_eqs_graph(cnf)
+
+        sl = graph.straight_line()
+        if sl is not None:
+            graph = sl
+
+        #print(graph.to_graphwiz())
+
     except NotImplementedError:
         sys.stderr.write("Not supported constraint\n")
         exit(5)
@@ -24,18 +40,8 @@ def main(args: argparse.Namespace):
         sys.stderr.write("Error during reading the file\n")
         exit(4)
 
-    sat = False
-    for sq in multiquery:
-        assert is_straightline(sq.equations)
-        noodler_machine = StraightlineNoodleMachine(sq)
-
-        if args.propagate_vars and not bidi:
-            noodler_machine.propagate_constraints()
-
-        if not args.parse_only:
-            if noodler_machine.is_sat(bidi, True):
-                sat = True
-                break
+    gn: GraphNoodler = GraphNoodler(graph, aut)
+    sat = gn.is_sat()
 
     if sat:
         print("sat")

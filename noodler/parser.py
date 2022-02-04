@@ -299,6 +299,10 @@ class SmtlibParser:
                 new_var = self.fresh_variable()
                 aux_vars[new_var] = const_re
                 return [new_var]
+
+            if z3_ref.decl().kind() != z3.Z3_OP_SEQ_CONCAT:
+                raise NotImplementedError("Operator {0} not implemented".format(z3_ref.as_string()))
+
             children = [z3_concat_to_var_list(child) for child in z3_ref.children()]
             return itertools.chain(*children)
 
