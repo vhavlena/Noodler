@@ -32,13 +32,15 @@ class StringEqGraph:
     Graph of equations
     """
 
-    def __init__(self, vert: Sequence[StringEqNode]):
+    def __init__(self, vert: Sequence[StringEqNode], ini: Set[StringEquation], fin: Set[StringEquation]):
         """!
         Constructior
 
         @param vert: List of vertices
         """
         self.vertices = vert
+        self.initials = ini
+        self.finals = fin
 
 
     def copy(self) -> "StringEqGraph":
@@ -60,7 +62,7 @@ class StringEqGraph:
                 nodes[v.eq].succ.append(nodes[s.eq])
             nodes[v.eq].eval_formula = copy.copy(v.eval_formula)
 
-        return StringEqGraph(vert_n)
+        return StringEqGraph(vert_n, copy.copy(self.initials), copy.copy(self.finals))
 
 
     def subgraph(self, restr: Set[StringEquation]) -> None:
@@ -83,12 +85,7 @@ class StringEqGraph:
                     continue
                 tmp.append(s)
             v.succ = tmp
-
-            print("-----------------------------------------------")
-            print(v.eq, restr)
-            print(v.eval_formula)
             v.eval_formula = v.eval_formula.restrict_eq(restr)
-            print(v.eval_formula)
 
         self.vertices = vert_n
 
@@ -200,6 +197,14 @@ class StringEqGraph:
             if len(scc) > 1:
                 return None
 
+        not_ini = set()
+        cp.finals = set()
+        for v in cp.vertices:
+            not_ini = not_ini.union(set([c.eq for c in v.succ]))
+            if len(v.succ) == 0:
+                cp.finals.add(v.eq)
+        cp.initials = set([c.eq for c in cp.vertices]) - not_ini
+
         return cp
 
 
@@ -218,7 +223,14 @@ class StringEqGraph:
         c = 0
         for eq in self.vertices:
             num[eq.eq] = c
-            ret += "\"{0}\" [label=\"{1}\", xlabel=\"{2}\"]\n".format(c, eq.eq, eq.eval_formula)
+
+            attr = ""
+            if eq.eq in self.initials:
+                attr += ", color=red"
+            if eq.eq in self.finals:
+                attr += ", style=filled, fillcolor=lightgreen"
+
+            ret += "\"{0}\" [label=\"{1}\", xlabel=\"{2}\"{3}]\n".format(c, eq.eq, eq.eval_formula, attr)
             c = c + 1
 
         for eq in self.vertices:
@@ -253,7 +265,11 @@ class StringEqGraph:
                 all_nodes.append(nnpr)
                 c += 2
 
+        ini = set()
+        fin = set()
         for v1 in all_nodes:
+            ini.add(v1.eq)
+            fin.add(v1.eq)
             for clause in equations:
                 if v1.eq in clause or v1.eq.switched in clause:
                     continue
@@ -270,4 +286,4 @@ class StringEqGraph:
                     v1.eval_formula = StringConstraint(ConstraintType.AND, v1.eval_formula, StringConstraint.build_op(ConstraintType.OR, fl_clause))
 
 
-        return StringEqGraph(all_nodes)
+        return StringEqGraph(all_nodes, ini, fin)
