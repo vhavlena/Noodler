@@ -138,44 +138,6 @@ class StringEqGraph:
         return scc
 
 
-    def remove_regular_nodes(self, aut_constraints) -> None:
-        """!
-        Remove nodes from the graph that can be reduced to a regular constraint.
-        Implemented as a fixpoint evaluation.
-
-        @param aut_constraints: Automata constraints to be updated
-        """
-
-        def _remove_reg_iter():
-            other_vars: dict[StringEquation, Set[str]] = defaultdict(lambda: set())
-            for v1 in self.vertices:
-                for v2 in self.vertices:
-                    if v1.eq == v2.eq or v1.eq == v2.eq.switched:
-                        continue
-                    other_vars[v1.eq] = other_vars[v1.eq].union(v2.eq.get_vars())
-
-            stay = set()
-            for v in self.vertices:
-                if len(v.eq.get_side("right")) == 1 and len(other_vars[v.eq] & v.eq.get_vars_side("left")) == 0 and not v.eq.more_occur_side("left"):
-                    var = v.eq.get_side("right")[0]
-                    q = AutSingleSEQuery(v.eq, aut_constraints)
-                    aut_constraints[var] = awalipy.product(q.automaton_for_side("left"), aut_constraints[var]).proper().minimal_automaton().trim()
-                elif len(v.eq.get_side("left")) == 1 and len(other_vars[v.eq] & v.eq.get_vars_side("right")) == 0 and not v.eq.more_occur_side("right"):
-                    var = v.eq.get_side("left")[0]
-                    q = AutSingleSEQuery(v.eq, aut_constraints)
-                    aut_constraints[var] = awalipy.product(q.automaton_for_side("right"), aut_constraints[var]).proper().minimal_automaton().trim()
-                else:
-                    stay.add(v.eq)
-            self.subgraph(stay)
-
-        b, a = 0, len(self.vertices)
-        while b - a != 0:
-            b = a
-            _remove_reg_iter()
-            a = len(self.vertices)
-
-
-
     def straight_line(self) -> "StringEqGraph":
         """!
         Reduce the equation graph to a straight line graph (only if it
@@ -259,6 +221,69 @@ class StringEqGraph:
                 ret += "\"{0}\" -> \"{1}\";\n".format(num[eq.eq], num[s.eq])
         ret += "}\n";
         return ret
+
+
+    @staticmethod
+    def reduce_regular_eqs(equations: Sequence[Sequence[StringEquation]], aut_constraints) -> Sequence[Sequence[StringEquation]]:
+        """!
+        Remove nodes from CNF that can be reduced to a regular constraint.
+        Implemented as a fixpoint evaluation.
+
+        @equations: CNF list of the formula
+        @param aut_constraints: Automata constraints to be updated
+        @return Reduced CNF list with updated automata constraints
+        """
+
+        def _remove_reg_iter(eqs):
+            other_vars: dict[int, Set[str]] = defaultdict(lambda: set())
+
+            vars: dict[int, Set[str]] = dict()
+            for i in range(len(eqs)):
+                vars[i] = set().union(*[c.get_vars() for c in eqs[i]])
+            for i in range(len(eqs)):
+                other_vars[i] = set().union(*[vars[l] for l in range(len(eqs)) if l != i])
+
+            modif = []
+            for i in range(len(eqs)):
+
+                if len(eqs[i]) == 0:
+                    continue
+
+                eq = eqs[i][0]
+                cond_left = lambda x: (x.get_side("left") == eq.get_side("left")) and len(x.get_side("left")) == 1 and (not x.more_occur_side("right")) and len(other_vars[i] & x.get_vars_side("right")) == 0
+                cond_right = lambda x: x.get_side("right") == eq.get_side("right") and len(x.get_side("right")) == 1 and (not x.more_occur_side("left")) and len(other_vars[i] & x.get_vars_side("left")) == 0
+
+                s1, s2 = None, None
+                if all(cond_left(x) for x in eqs[i]):
+                    s1, s2 = "left", "right"
+                elif all(cond_right(x) for x in eqs[i]):
+                    s1, s2 = "right", "left"
+                else:
+                    modif.append(eqs[i])
+                    continue
+
+                aut = None
+                for eq in eqs[i]:
+                    var = eq.get_side(s1)[0]
+                    q = AutSingleSEQuery(eq, aut_constraints)
+
+                    if aut is None:
+                        aut = q.automaton_for_side(s2)
+                    else:
+                        aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().minimal_automaton().trim()
+                aut_constraints[var] = awalipy.product(aut, aut_constraints[var]).proper().minimal_automaton().trim()
+
+            return modif
+
+        b, a = 0, len(equations)
+        eq_new = equations
+        while b - a != 0:
+            b = a
+            eq_new = _remove_reg_iter(eq_new)
+            a = len(eq_new)
+
+        return eq_new
+
 
 
     @staticmethod

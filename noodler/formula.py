@@ -23,7 +23,7 @@ TransID : int
     ID of transition in automaton
 """
 
-from typing import Dict, Type, Union, Sequence, Set, Optional
+from typing import Dict, Type, Union, Sequence, Set, Optional, Callable
 from enum import Enum
 from dataclasses import dataclass
 from collections import defaultdict
@@ -173,6 +173,14 @@ class StringEquation:
 
     def __repr__(self):
         return f"{self.__class__.__name__}: {self.left} = {self.right}"
+
+    def __eq__(self, other):
+        return self.left == other.left and self.right == other.right
+
+    def __hash__(self):
+        return hash((tuple(self.left), tuple(self.right)))
+
+
 
 
 class StringConstraint:
@@ -384,6 +392,36 @@ class StringConstraint:
             return right
         else:
             return None
+
+
+    def rename_eq(self, ren_func: Callable) -> None:
+        if self.op == ConstraintType.EQ:
+            self.left = ren_func(self.left)
+        if self.is_leaf():
+            return
+
+        self.left.rename_eq(ren_func)
+        self.right.rename_eq(ren_func)
+
+
+    def eval(self, sat: Dict[StringEquation, bool]) -> bool:
+        if self.op == ConstraintType.EQ:
+            return sat[self.left]
+        elif self.op == ConstraintType.TRUE:
+            return True
+        elif self.op == ConstraintType.FALSE:
+            return False
+        elif self.op == ConstraintType.RE:
+            raise Exception("REs are not supported for evaluation")
+
+
+        left = self.left.eval(sat)
+        right = self.right.eval(sat)
+
+        if self.op == ConstraintType.AND:
+            return left and right
+        else:
+            return left or right
 
 
     def __repr__(self):
