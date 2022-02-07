@@ -31,8 +31,6 @@ def main(args: argparse.Namespace):
         if sl is not None:
             graph = sl
 
-        #print(graph.to_graphwiz())
-
     except NotImplementedError:
         sys.stderr.write("Not supported constraint\n")
         exit(5)

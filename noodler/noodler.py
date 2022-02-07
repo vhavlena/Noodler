@@ -140,7 +140,7 @@ def create_unified_query(equation: StringEquation,
         aut_r = {right_auts[i] for i in equation.indices_r[var]}
         var_auts = aut_l.union(aut_r)
         product: Aut = multiop(list(var_auts), awalipy.product)
-        const[var] = product.minimal_automaton().trim()
+        const[var] = product.proper().trim()
         if const[var].num_states() == 0:
             return None
 

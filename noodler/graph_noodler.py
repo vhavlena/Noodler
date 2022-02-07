@@ -81,7 +81,7 @@ class GraphNoodler:
 
             # if any(compare_aut_constraints(query, i) for i in cache[node.eq]):
             #     continue
-            cache[node.eq].append(query)
+            # cache[node.eq].append(query)
 
             cur_query = AutSingleSEQuery(node.eq, query)
 
