@@ -64,10 +64,16 @@ class GraphNoodler:
         return False
 
 
-    def is_sat(self):
+    def is_sat(self, is_sl: bool):
+        """!
+        Check whether the string constraint is satisfiable
+
+        @param is_sl: Is the constraint in straight-line fragment?
+        @return True: Satisfiable, otherwise False
+        """
 
         if len(self.graph.vertices) == 0:
-            return self.is_graph_stable(self.aut_constr, True)
+            return self.is_graph_stable(self.aut_constr, is_sl)
 
         cache: Dict[StringEquation, Sequence[AutConstraints]] = defaultdict(lambda: [])
         fin_eq = { c.eq for c in self.graph.finals }
@@ -92,7 +98,7 @@ class GraphNoodler:
                 cur_constraints: AutConstraints = query.copy()
                 cur_constraints.update(noodle.constraints)
 
-                if node.eq in fin_eq and self.is_graph_stable(cur_constraints, True):
+                if node.eq in fin_eq and self.is_graph_stable(cur_constraints, is_sl):
                    return True
 
                 for s in node.succ:

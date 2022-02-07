@@ -39,7 +39,7 @@ def main(args: argparse.Namespace):
         exit(4)
 
     gn: GraphNoodler = GraphNoodler(graph, aut)
-    sat = gn.is_sat()
+    sat = gn.is_sat(sl is not None)
 
     if sat:
         print("sat")
