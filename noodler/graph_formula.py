@@ -313,8 +313,8 @@ class StringEqGraph:
         all_nodes = []
         eqs_switch = []
         eqs = []
-        for clause in equations:
 
+        for clause in equations:
             cl = []
             for eq in clause:
                 cl.append(eq)
@@ -327,7 +327,7 @@ class StringEqGraph:
 
         for eq in eqs:
             nodes[eq].succ.append(nodes[eq.switched])
-            nodes[eq].eval_formula = StringConstraint(ConstraintType.EQ, eq)
+            nodes[eq].eval_formula = StringConstraint(ConstraintType.EQ, eq.switched)
 
         join_succ(eqs_switch, equations, nodes)
         eqs_switch.reverse()
