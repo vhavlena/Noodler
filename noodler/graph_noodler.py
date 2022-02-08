@@ -83,7 +83,7 @@ class GraphNoodler:
             Q.append((node, self.aut_constr))
 
         while len(Q) > 0:
-            node, query = Q.popleft()
+            node, query = Q.pop()
 
             # if any(compare_aut_constraints(query, i) for i in cache[node.eq]):
             #     continue
@@ -98,7 +98,7 @@ class GraphNoodler:
                 cur_constraints: AutConstraints = query.copy()
                 cur_constraints.update(noodle.constraints)
 
-                if node.eq in fin_eq and self.is_graph_stable(cur_constraints, is_sl):
+                if (node.eq in fin_eq) and self.is_graph_stable(cur_constraints, is_sl):
                    return True
 
                 for s in node.succ:

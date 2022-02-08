@@ -237,9 +237,16 @@ class StringEqGraph:
         def _remove_reg_iter(eqs):
             other_vars: dict[int, Set[str]] = defaultdict(lambda: set())
 
+            lit = set()
+            for var, aut in aut_constraints.items():
+                aut = aut.trim()
+                if len(aut.states()) - 1 == len(aut.transitions()):
+                    lit.add(var)
+
             vars: dict[int, Set[str]] = dict()
             for i in range(len(eqs)):
                 vars[i] = set().union(*[c.get_vars() for c in eqs[i]])
+                vars[i] = vars[i] - lit
             for i in range(len(eqs)):
                 other_vars[i] = set().union(*[vars[l] for l in range(len(eqs)) if l != i])
 
