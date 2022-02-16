@@ -278,7 +278,7 @@ class StringEqGraph:
                         aut = q.automaton_for_side(s2)
                     else:
                         aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().trim()
-                aut_constraints[var] = awalipy.product(aut, aut_constraints[var]).proper().minimal_automaton().trim()
+                aut_constraints[var] = awalipy.product(aut, aut_constraints[var]).proper().trim()
 
             return modif
 

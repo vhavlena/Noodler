@@ -15,6 +15,16 @@ long time to solve (especially when starting from the right-hand side).
 
  * Python 3.6+
  * [Awali] with Python bindings (Awalipy) installed.
+ * Python packages installed via `requirements.txt`
+
+## Run
+
+To run Noodler, use the following syntax:
+
+```
+./noodler.py <filename>
+```
+where `filename` is a file containing a formula in smtlib2 format.
 
 [Awali]: http://vaucanson-project.org/Awali/
 [Binder_badge]: https://mybinder.org/badge_logo.svg

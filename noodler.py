@@ -1,13 +1,15 @@
+#!/usr/bin/env python3
+
 import argparse
 import sys
 import z3
 
-from .core import is_straightline
-from .parser import SmtlibParserHackAbc
-from .noodler import StraightlineNoodleMachine, QueueNoodler
-from .sequery import StringConstraintQuery, AutSingleSEQuery
-from .graph_noodler import GraphNoodler
-from .graph_formula import StringEqGraph
+from noodler.core import is_straightline
+from noodler.parser import SmtlibParserHackAbc
+from noodler.noodler import StraightlineNoodleMachine, QueueNoodler
+from noodler.sequery import StringConstraintQuery, AutSingleSEQuery
+from noodler.graph_noodler import GraphNoodler
+from noodler.graph_formula import StringEqGraph
 
 
 def main(args: argparse.Namespace):
@@ -32,7 +34,7 @@ def main(args: argparse.Namespace):
             graph = sl
 
     except NotImplementedError:
-        sys.stderr.write("Not supported constraint\n")
+        sys.stderr.write("unknown\n")
         exit(5)
     except z3.z3types.Z3Exception:
         sys.stderr.write("Error during reading the file\n")
@@ -47,15 +49,15 @@ def main(args: argparse.Namespace):
         print("unsat")
 
 
-description = """Solves SAT problem for string constraints."""
+if __name__ == "__main__":
+    description = """Solves SAT problem for string constraints."""
 
-# TODO add helper texts.
-parser = argparse.ArgumentParser(description=description)
-parser.add_argument("--parse_only", action="store_true")
-parser.add_argument("--propagate-vars", action="store_true")
-parser.add_argument("--bidi", action="store_true")
-parser.add_argument("filename", type=str)
+    # TODO add helper texts.
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument("--parse_only", action="store_true")
+    parser.add_argument("--propagate-vars", action="store_true")
+    parser.add_argument("--bidi", action="store_true")
+    parser.add_argument("filename", type=str)
 
-args = parser.parse_args()
-main(args)
-exit(0)
+    args = parser.parse_args()
+    main(args)
