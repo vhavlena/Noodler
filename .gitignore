@@ -141,3 +141,5 @@ cython_debug/
 .idea
 
 experimental/eval/*.pdf
+
+.DS_Store

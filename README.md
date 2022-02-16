@@ -19,7 +19,7 @@ long time to solve (especially when starting from the right-hand side).
 
 ## Run
 
-To run Noodler, use the following syntax:
+To run Noodler, use the following command:
 
 ```
 ./noodler.py <filename>
