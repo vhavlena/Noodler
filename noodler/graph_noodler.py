@@ -87,7 +87,10 @@ class GraphNoodler:
             Q.append((node, self.aut_constr))
 
         while len(Q) > 0:
-            node, query = Q.pop()
+            if is_sl:
+                node, query = Q.pop()
+            else:
+                node, query = Q.popleft()
 
             # if any(compare_aut_constraints(query, i) for i in cache[node.eq]):
             #     continue

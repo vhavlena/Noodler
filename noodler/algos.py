@@ -16,6 +16,7 @@ from typing import Callable, Sequence, Dict, Set
 import awalipy
 import ast
 import copy
+import queue
 from collections import defaultdict
 
 from .core import Aut, SegAut, TransID
@@ -52,6 +53,58 @@ def multiop(automata: Sequence[Aut],
         res = operation(res, aut)
 
     return res
+
+
+def get_shortest_strings_bfs(aut: Aut) -> Set[str]:
+    """!
+    Get shortest strings (regarding their length) of a given automaton using BFS.
+
+    @param aut: Automaton
+    @return Set of shortest strings
+    """
+
+    short = defaultdict(lambda: (-1, set()))
+    concat = lambda x, s: set([ x + u for u in s ])
+    trans = aut.transpose()
+
+    for fin in trans.initial_states():
+        short[fin] = (0, set([""]))
+
+    lifo = queue.LifoQueue()
+    proc = set(trans.initial_states())
+
+    for st in trans.initial_states():
+        lifo.put(st)
+
+    while not lifo.empty():
+
+        st = lifo.get()
+        dst_l, dst_w = short[st]
+
+        for tr in trans.outgoing(st):
+
+            orig_l, orig_w = short[trans.dst_of(tr)]
+            act_l, act_w = orig_l, copy.deepcopy(orig_w)
+
+            if (act_l == -1) or (dst_l + 1 < act_l):
+                label = awali_to_string(trans.label_of(tr))
+                act_w = concat(label, dst_w)
+                act_l = dst_l + 1
+            elif dst_l + 1 == act_l:
+                label = awali_to_string(trans.label_of(tr))
+                act_w.union(concat(label, dst_w))
+                act_l = dst_l + 1
+
+            if orig_w != act_w:
+                short.update([(trans.dst_of(tr), (act_l, act_w))])
+                short[trans.dst_of(tr)] = act_l, act_w
+
+            if trans.dst_of(tr) not in proc:
+                proc.add(trans.dst_of(tr))
+                lifo.put(trans.dst_of(tr))
+
+    assert(len(trans.final_states()) == 1)
+    return short[trans.final_states()[0]][1]
 
 
 def get_shortest_strings(aut: Aut) -> Set[str]:

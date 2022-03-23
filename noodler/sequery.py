@@ -19,7 +19,7 @@ import awalipy
 import copy
 
 from .utils import show_automata
-from .algos import chain_automata, multiop, get_shortest_strings
+from .algos import chain_automata, multiop, get_shortest_strings, get_shortest_strings_bfs
 #types
 from .core import AutConstraints, Aut, Constraints, SegAut, RE
 # classes
@@ -216,7 +216,7 @@ class AutSingleSEQuery(SingleSEQuery):
 
         tmp_l = aut_l.proper().minimal_automaton()
         tmp_r = aut_r.proper().minimal_automaton()
-        short = get_shortest_strings(tmp_l)
+        short = get_shortest_strings_bfs(tmp_l)
 
         for w in short:
             if int(tmp_r.eval(w)) == 0:

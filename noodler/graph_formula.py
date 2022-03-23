@@ -265,7 +265,7 @@ class StringEqGraph:
             for i in range(len(eqs)):
                 modif.append([])
                 for eq in eqs[i]:
-                    if len(other_vars[i] & eq.get_vars_side("right")) == 0:
+                    if (len(other_vars[i] & eq.get_vars_side("right")) == 0) and (len(eq.get_vars_side("left") & eq.get_vars_side("right")) == 0):
                         right = eq.get_vars_side("right")
                         q = AutSingleSEQuery(eq, aut_constraints)
                         aut = q.automaton_for_side("right")
@@ -291,8 +291,12 @@ class StringEqGraph:
                     continue
 
                 eq = eqs[i][0]
-                cond_left = lambda x: (x.get_side("left") == eq.get_side("left")) and len(x.get_side("left")) == 1 and (not x.more_occur_side("right")) and len(other_vars[i] & x.get_vars_side("right")) == 0
-                cond_right = lambda x: x.get_side("right") == eq.get_side("right") and len(x.get_side("right")) == 1 and (not x.more_occur_side("left")) and len(other_vars[i] & x.get_vars_side("left")) == 0
+                cond_left = lambda x: (x.get_side("left") == eq.get_side("left")) and len(x.get_side("left")) == 1 and\
+                    (not x.more_occur_side("right")) and len(other_vars[i] & x.get_vars_side("right")) == 0 and \
+                    len(x.get_vars_side("left") & x.get_vars_side("right")) == 0
+                cond_right = lambda x: x.get_side("right") == eq.get_side("right") and len(x.get_side("right")) == 1 and\
+                    (not x.more_occur_side("left")) and len(other_vars[i] & x.get_vars_side("left")) == 0 and \
+                    len(x.get_vars_side("left") & x.get_vars_side("right")) == 0
 
                 s1, s2 = None, None
                 if all(cond_left(x) for x in eqs[i]):
