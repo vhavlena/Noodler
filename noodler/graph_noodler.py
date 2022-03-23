@@ -75,6 +75,10 @@ class GraphNoodler:
         if len(self.graph.vertices) == 0:
             return self.is_graph_stable(self.aut_constr, is_sl)
 
+        for v, aut in self.aut_constr.items():
+            if aut.num_useful_states() == 0:
+                return False
+
         cache: Dict[StringEquation, Sequence[AutConstraints]] = defaultdict(lambda: [])
         fin_eq = { c.eq for c in self.graph.finals }
 

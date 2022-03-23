@@ -234,7 +234,7 @@ class StringEqGraph:
         @return Reduced CNF list with updated automata constraints
         """
 
-        def _remove_reg_iter(eqs):
+        def _get_other_vars(eqs):
             other_vars: dict[int, Set[str]] = defaultdict(lambda: set())
 
             lit = set()
@@ -249,6 +249,40 @@ class StringEqGraph:
                 vars[i] = vars[i] - lit
             for i in range(len(eqs)):
                 other_vars[i] = set().union(*[vars[l] for l in range(len(eqs)) if l != i])
+
+            return other_vars
+
+
+        def _new_var(var_cnt):
+            return "_reg_var{0}".format(var_cnt)
+
+
+        def _remove_unique_vars(eqs):
+            other_vars = _get_other_vars(eqs)
+            var_cnt = 0
+
+            modif = []
+            for i in range(len(eqs)):
+                modif.append([])
+                for eq in eqs[i]:
+                    if len(other_vars[i] & eq.get_vars_side("right")) == 0:
+                        right = eq.get_vars_side("right")
+                        q = AutSingleSEQuery(eq, aut_constraints)
+                        aut = q.automaton_for_side("right")
+                        for v in right:
+                            aut_constraints.pop(v, None)
+
+                        new_var = _new_var(var_cnt)
+                        var_cnt += 1
+                        aut_constraints[new_var] = aut
+                        modif[i].append(StringEquation(eq.get_side("left"), [new_var]))
+                    else:
+                        modif[i].append(eq)
+            return modif
+
+
+        def _remove_reg_iter(eqs):
+            other_vars = _get_other_vars(eqs)
 
             modif = []
             for i in range(len(eqs)):
@@ -282,6 +316,8 @@ class StringEqGraph:
 
             return modif
 
+
+        equations = _remove_unique_vars(equations)
         b, a = 0, len(equations)
         eq_new = equations
         while b - a != 0:
