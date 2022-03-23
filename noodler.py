@@ -8,7 +8,7 @@ from noodler.core import is_straightline
 from noodler.parser import SmtlibParserHackAbc
 from noodler.noodler import StraightlineNoodleMachine, QueueNoodler
 from noodler.sequery import StringConstraintQuery, AutSingleSEQuery
-from noodler.graph_noodler import GraphNoodler
+from noodler.graph_noodler import *
 from noodler.graph_formula import StringEqGraph
 
 
@@ -41,7 +41,11 @@ def main(args: argparse.Namespace):
         exit(4)
 
     gn: GraphNoodler = GraphNoodler(graph, aut)
-    sat = gn.is_sat(sl is not None)
+    sett: GraphNoodlerSettings = GraphNoodlerSettings()
+    sett.balance_check = sl is None
+    sett.strategy = StrategyType.BFS if sl is None else StrategyType.DFS
+
+    sat = gn.is_sat(sett)
 
     if sat:
         print("sat")

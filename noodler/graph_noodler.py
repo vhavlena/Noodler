@@ -3,6 +3,8 @@ import itertools
 
 from collections import deque, defaultdict
 from typing import Sequence, Optional, List, Dict, Set
+from dataclasses import dataclass
+from enum import Enum
 
 # Classes
 from .core import StringEquation, compare_aut_constraints
@@ -15,6 +17,17 @@ from .algos import eps_preserving_product, eps_segmentation, multiop, single_fin
 from .noodler import noodlify, noodlify_query, create_unified_query, is_unified, SimpleNoodler
 
 
+class StrategyType(Enum):
+    BFS = 1,
+    DFS = 2
+
+
+@dataclass
+class GraphNoodlerSettings:
+    balance_check : bool = True
+    strategy : StrategyType = StrategyType.BFS
+
+
 class GraphNoodler:
 
     def __init__(self, vert: StringEqGraph, ini_constr: AutConstraints):
@@ -25,7 +38,7 @@ class GraphNoodler:
         self.graph = vert
 
 
-    def is_graph_stable(self, constr: AutConstraints, straight_line: bool):
+    def is_graph_stable(self, constr: AutConstraints, balance_check: bool):
         """!
         Is a graph of string equations stable (=each node is stable)?
 
@@ -49,7 +62,7 @@ class GraphNoodler:
         sat: Dict[StringEquation, bool] = dict()
 
 
-        if straight_line:
+        if not balance_check:
             return all(len(v.useful_states()) > 0 for k, v in constr.items())
 
 
@@ -64,7 +77,7 @@ class GraphNoodler:
         return False
 
 
-    def is_sat(self, is_sl: bool):
+    def is_sat(self, sett : GraphNoodlerSettings):
         """!
         Check whether the string constraint is satisfiable
 
@@ -73,7 +86,7 @@ class GraphNoodler:
         """
 
         if len(self.graph.vertices) == 0:
-            return self.is_graph_stable(self.aut_constr, is_sl)
+            return self.is_graph_stable(self.aut_constr, sett.balance_check)
 
         for v, aut in self.aut_constr.items():
             if aut.num_useful_states() == 0:
@@ -87,9 +100,9 @@ class GraphNoodler:
             Q.append((node, self.aut_constr))
 
         while len(Q) > 0:
-            if is_sl:
+            if sett.strategy == StrategyType.DFS:
                 node, query = Q.pop()
-            else:
+            elif sett.strategy == StrategyType.BFS:
                 node, query = Q.popleft()
 
             # if any(compare_aut_constraints(query, i) for i in cache[node.eq]):
@@ -105,7 +118,7 @@ class GraphNoodler:
                 cur_constraints: AutConstraints = query.copy()
                 cur_constraints.update(noodle.constraints)
 
-                if (node.eq in fin_eq) and self.is_graph_stable(cur_constraints, is_sl):
+                if (node.eq in fin_eq) and self.is_graph_stable(cur_constraints, sett.balance_check):
                    return True
 
                 for s in node.succ:
