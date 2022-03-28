@@ -35,7 +35,7 @@ def main(args: argparse.Namespace):
 
     except NotImplementedError:
         sys.stderr.write("unknown\n")
-        exit(5)
+        exit(0)
     except z3.z3types.Z3Exception:
         sys.stderr.write("Error during reading the file\n")
         exit(4)
