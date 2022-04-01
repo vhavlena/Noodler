@@ -214,8 +214,8 @@ class AutSingleSEQuery(SingleSEQuery):
         aut_l = multiop(auts_l, lambda x,y: x.concatenate(y))
         aut_r = multiop(auts_r, lambda x,y: x.concatenate(y))
 
-        tmp_l = aut_l.proper().minimal_automaton()
-        tmp_r = aut_r.proper().minimal_automaton()
+        tmp_l = aut_l.proper()
+        tmp_r = aut_r.proper()
         short = get_shortest_strings_bfs(tmp_l)
 
         for w in short:

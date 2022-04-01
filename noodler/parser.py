@@ -27,6 +27,7 @@ from .sequery import MultiSEQuery, awalipy_allchar
 import awalipy
 import z3
 import ast
+from collections import defaultdict
 
 
 def awalipy_ratexp_plus(re: RE):
@@ -147,6 +148,8 @@ class SmtlibParser:
 
         self.constraints: REConstraints = dict()
         self.equations: Collection[StringEquation] = []
+
+        self.str_exp: Dict[str,str] = defaultdict(lambda: self.fresh_variable())
 
         # Gather alphabet
         for ref in self.assertions:
@@ -296,7 +299,7 @@ class SmtlibParser:
             elif is_string_constant(z3_ref):
                 const = z3_ref.as_string()
                 const_re: RE = self.create_awali_re(const)
-                new_var = self.fresh_variable()
+                new_var = self.str_exp[const]  #self.fresh_variable()
                 aux_vars[new_var] = const_re
                 return [new_var]
 

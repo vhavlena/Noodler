@@ -332,6 +332,125 @@ class StringEqGraph:
         return eq_new
 
 
+    @staticmethod
+    def reduce_common_sub(equations: Sequence[Sequence[StringEquation]], aut_constraints) -> Sequence[Sequence[StringEquation]]:
+
+        def _replace_side(find, replace, side):
+            ret = []
+            i = 0
+            while i < len(side):
+                if find[0] == side[i] and side[i:i+len(find)] == list(find):
+                    ret += list(replace)
+                    i += len(find)
+                else:
+                    ret.append(side[i])
+                    i += 1
+
+            return ret
+
+
+        def _update_str(succ, side):
+            for i in range(len(side)-1):
+
+                aut = aut_constraints[side[i]].trim()
+                if len(aut.states()) - 1 == len(aut.transitions()):
+                    continue
+
+                succ[side[i]].add(side[i+1])
+            succ[side[-1]].add("")
+
+        succ: Dict[str, Set[str]] = defaultdict(lambda: set())
+        for eqs in equations:
+
+            assert(len(eqs) == 1)
+
+            eq = eqs[0]
+            _update_str(succ, eq.get_side("left"))
+            _update_str(succ, eq.get_side("right"))
+
+
+        sublst: Dict[Tuple[str], int] = defaultdict(lambda: 0)
+        for eqs in equations:
+            eq = eqs[0]
+            add = []
+            for var in eq.get_side("left") + eq.get_side("right"):
+                if len(succ[var]) <= 1 and not "" in succ[var]:
+                    add.append(var)
+                if len(add) > 0 and (len(succ[var]) > 1 or "" in succ[var]):
+                    add.append(var)
+                    sublst[tuple(add)] += 1
+                    add = []
+
+        sl: Dict[Tuple[str], int] = defaultdict(lambda: 0)
+        for sub, cnt in sublst.items():
+            sl[sub] = cnt
+            for sub2, cnt2 in sublst.items():
+                if sub == sub2:
+                    continue
+                if set(sub) <= set(sub2):
+                    sl[sub] += cnt2
+
+
+        eqprime = []
+        replace = [ k for k, v in sl.items() if v >= 2]
+        replace_map = dict()
+        for i in range(len(replace)):
+            var = "_sub_var_{0}".format(i)
+            replace_map[replace[i]] = [var]
+            eqprime.append([StringEquation([var], list(replace[i]))])
+
+        for eqs in equations:
+            eq = eqs[0]
+
+            l_side = eq.get_side("left")
+            r_side = eq.get_side("right")
+            for k,v in replace_map.items():
+                l_side = _replace_side(k, v, l_side)
+                r_side = _replace_side(k, v, r_side)
+            eqprime.append([StringEquation(l_side, r_side)])
+
+        #TODO: modify automata constraints
+
+        return []
+
+
+
+
+    @staticmethod
+    def get_eqs_graph_ring(equations: Sequence[Sequence[StringEquation]]) -> "StringEqGraph":
+        """!
+        Get graph of equations. Each node is an equation. We distinguish L=R and
+        R=L. Two equations are adjacent if they share a variable.
+
+        @param equations: Sequence of string equations representing a conjunction of equations
+        @return String Equation Graph
+        """
+
+        nodes: Dict[StringEquation, StringEqNode] = dict()
+        all_nodes = []
+        eqs = []
+
+        for clause in equations:
+            cl = []
+            assert(len(clause) == 1)
+            for eq in clause:
+                cl.append(eq)
+                cl.append(eq.switched)
+            eqs += cl
+
+        nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
+        all_nodes = [ nodes[eq] for eq in eqs]
+
+        for i in range(len(eqs)-1):
+            nodes[eqs[i]].succ.append(nodes[eqs[i+1]])
+            fl = StringConstraint(ConstraintType.EQ, eqs[i+1])
+            nodes[eqs[i]].eval_formula = fl
+
+        nodes[eqs[len(eqs)-1]].eval_formula = StringConstraint(ConstraintType.EQ, eqs[0])
+        nodes[eqs[len(eqs)-1]].succ.append(nodes[eqs[0]])
+
+        return StringEqGraph(all_nodes, [nodes[eqs[-1]]], list(nodes.values()))
+
 
     @staticmethod
     def get_eqs_graph(equations: Sequence[Sequence[StringEquation]]) -> "StringEqGraph":
