@@ -5,6 +5,7 @@ import sys
 import z3
 
 from functools import reduce
+from git import Repo
 
 from noodler.core import is_straightline
 from noodler.parser import SmtlibParserHackAbc
@@ -17,6 +18,13 @@ from noodler.graph_formula import StringEqGraph
 def main(args: argparse.Namespace):
     filename = args.filename
     bidi = args.bidi
+
+    if args.version:
+        repo = Repo("./")
+        commit_hash = repo.git.rev_parse("HEAD")
+        print(commit_hash[0:8])
+        exit(0)
+
 
     try:
         smt_parser = SmtlibParserHackAbc(filename)
@@ -70,7 +78,8 @@ if __name__ == "__main__":
     parser.add_argument("--parse_only", action="store_true")
     parser.add_argument("--propagate-vars", action="store_true")
     parser.add_argument("--bidi", action="store_true")
-    parser.add_argument("filename", type=str)
+    parser.add_argument("--version", action="store_true")
+    parser.add_argument("filename", type=str, nargs="?")
 
     args = parser.parse_args()
     main(args)
