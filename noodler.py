@@ -4,6 +4,8 @@ import argparse
 import sys
 import z3
 
+from functools import reduce
+
 from noodler.core import is_straightline
 from noodler.parser import SmtlibParserHackAbc
 from noodler.noodler import StraightlineNoodleMachine, QueueNoodler
@@ -25,16 +27,23 @@ def main(args: argparse.Namespace):
 
         scq = StringConstraintQuery(q, smt_parser.alphabet_str)
         cnf, aut = scq.get_queries_cnf()
-        cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
 
+        is_disj: bool = reduce(lambda x,y: x or y, [len(l) > 1 for l in cnf], False)
+
+        if not is_disj:
+            cnf, aut = StringEqGraph.reduce_common_sub(cnf, aut)
+
+        cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
         graph = StringEqGraph.get_eqs_graph(cnf)
 
         sl = graph.straight_line()
         if sl is not None:
             graph = sl
+        elif not is_disj:
+            graph = StringEqGraph.get_eqs_graph_ring(cnf)
 
     except NotImplementedError:
-        sys.stderr.write("unknown\n")
+        sys.stdout.write("unknown\n")
         exit(0)
     except z3.z3types.Z3Exception:
         sys.stderr.write("Error during reading the file\n")
