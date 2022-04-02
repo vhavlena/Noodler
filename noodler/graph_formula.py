@@ -8,7 +8,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 
 from .core import StringEquation
-from .sequery import AutSingleSEQuery, SingleSEQuery, MultiSEQuery
+from .sequery import AutSingleSEQuery, SingleSEQuery, MultiSEQuery, AutConstraints
 from .formula import StringConstraint, ConstraintType
 
 import itertools
@@ -234,6 +234,9 @@ class StringEqGraph:
         @return Reduced CNF list with updated automata constraints
         """
 
+        global var_cnt
+        var_cnt = 0
+
         def _get_other_vars(eqs):
             other_vars: dict[int, Set[str]] = defaultdict(lambda: set())
 
@@ -250,39 +253,46 @@ class StringEqGraph:
             for i in range(len(eqs)):
                 other_vars[i] = set().union(*[vars[l] for l in range(len(eqs)) if l != i])
 
-            return other_vars
+            return other_vars, lit
 
 
-        def _new_var(var_cnt):
+        def _new_var():
+            global var_cnt
+            var_cnt += 1
             return "_reg_var{0}".format(var_cnt)
+
+        def _remove_unique_vars_side(eq, lit, side1, side2, modif):
+            right = eq.get_vars_side(side1)
+            q = AutSingleSEQuery(eq, aut_constraints)
+            aut = q.automaton_for_side(side1)
+            for v in right - lit:
+                aut_constraints.pop(v, None)
+
+            new_var = _new_var()
+            aut_constraints[new_var] = aut
+            modif.append(StringEquation(eq.get_side(side2), [new_var]))
 
 
         def _remove_unique_vars(eqs):
-            other_vars = _get_other_vars(eqs)
-            var_cnt = 0
+            other_vars, lit = _get_other_vars(eqs)
 
             modif = []
             for i in range(len(eqs)):
                 modif.append([])
                 for eq in eqs[i]:
-                    if (len(other_vars[i] & eq.get_vars_side("right")) == 0) and (len(eq.get_vars_side("left") & eq.get_vars_side("right")) == 0):
-                        right = eq.get_vars_side("right")
-                        q = AutSingleSEQuery(eq, aut_constraints)
-                        aut = q.automaton_for_side("right")
-                        for v in right:
-                            aut_constraints.pop(v, None)
 
-                        new_var = _new_var(var_cnt)
-                        var_cnt += 1
-                        aut_constraints[new_var] = aut
-                        modif[i].append(StringEquation(eq.get_side("left"), [new_var]))
+                    side1, side2 = "right", "left"
+                    if (len(other_vars[i] & eq.get_vars_side(side1)) == 0) and (len(eq.get_vars_side(side2) & eq.get_vars_side(side1)) == 0):
+                        _remove_unique_vars_side(eq, lit, side1, side2, modif[i])
+                    elif (len(other_vars[i] & eq.get_vars_side(side2)) == 0) and (len(eq.get_vars_side(side1) & eq.get_vars_side(side2)) == 0):
+                        _remove_unique_vars_side(eq, lit, side2, side1, modif[i])
                     else:
                         modif[i].append(eq)
             return modif
 
 
         def _remove_reg_iter(eqs):
-            other_vars = _get_other_vars(eqs)
+            other_vars, _ = _get_other_vars(eqs)
 
             modif = []
             for i in range(len(eqs)):
@@ -333,7 +343,16 @@ class StringEqGraph:
 
 
     @staticmethod
-    def reduce_common_sub(equations: Sequence[Sequence[StringEquation]], aut_constraints) -> Sequence[Sequence[StringEquation]]:
+    def reduce_common_sub(equations: Sequence[Sequence[StringEquation]], aut_constraints: AutConstraints) \
+        -> (Sequence[Sequence[StringEquation]], AutConstraints):
+        """
+        Find common parts of each equation and replace them with a fresh equation
+        replacing the common parts.
+
+        @param equations: Equations without disjunctions
+        @param aut_constraints: Regular constraints
+        @return Pair of new equations together with modified regular constraints
+        """
 
         def _replace_side(find, replace, side):
             ret = []
@@ -409,9 +428,12 @@ class StringEqGraph:
                 r_side = _replace_side(k, v, r_side)
             eqprime.append([StringEquation(l_side, r_side)])
 
-        #TODO: modify automata constraints
+        for r, var in replace_map.items():
+            aut_query = AutSingleSEQuery(StringEquation(list(r), list(r)), aut_constraints)
+            aut = aut_query.automaton_for_side("left")
+            aut_constraints[var[0]] = aut
 
-        return []
+        return (eqprime, aut_constraints)
 
 
 
