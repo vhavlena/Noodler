@@ -323,9 +323,9 @@ class StringEqGraph:
                     q = AutSingleSEQuery(eq, aut_constraints)
 
                     if aut is None:
-                        aut = q.automaton_for_side(s2)
+                        aut = q.automaton_for_side(s2).proper().minimal_automaton().trim()
                     else:
-                        aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().trim()
+                        aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().minimal_automaton().trim()
                 aut_constraints[var] = awalipy.product(aut, aut_constraints[var]).proper().trim()
 
             return modif
