@@ -36,6 +36,10 @@ def main(args: argparse.Namespace):
         scq = StringConstraintQuery(q, smt_parser.alphabet_str)
         cnf, aut = scq.get_queries_cnf()
 
+        if not StringEqGraph.check_length_compatible(cnf, aut):
+            print("unsat")
+            exit(0)
+
         is_disj: bool = reduce(lambda x,y: x or y, [len(l) > 1 for l in cnf], False)
 
         if not is_disj:

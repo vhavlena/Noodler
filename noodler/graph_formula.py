@@ -14,6 +14,7 @@ from .formula import StringConstraint, ConstraintType
 import itertools
 import copy
 import awalipy
+import z3
 
 
 @dataclass
@@ -527,3 +528,30 @@ class StringEqGraph:
         join_succ(eqs_switch, equations, nodes)
 
         return StringEqGraph(all_nodes, list(nodes.values()), list(nodes.values()))
+
+
+    @staticmethod
+    def check_length_compatible(cnf: Sequence[Sequence[StringEquation]], auts) -> bool:
+        """!
+        Check length-compatibility. Convert a system of string equations into a system of
+        linear equations s.t. if the linear system is unsat, so are the string equations.
+        """
+        vars = {}
+        formula = []
+        for clause in cnf:
+            f_or = []
+            for eq in clause:
+                for v in eq.get_vars():
+                    aut = auts[v].trim()
+                    if len(aut.states()) - 1 == len(aut.transitions()):
+                        vars[v] = len(aut.transitions())
+                    else:
+                        vars[v] = z3.Int(v)
+                f_or.append(z3.Sum([ vars[v] for v in eq.get_vars_side("left")]) == z3.Sum([ vars[v] for v in eq.get_vars_side("right")]) )
+            formula.append(z3.Or(f_or))
+
+        formula += [v >= 0 for _,v in vars.items()]
+
+        s = z3.Solver()
+        s.add(formula)
+        return s.check() == z3.sat
