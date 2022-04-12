@@ -155,12 +155,16 @@ class StringEqGraph:
             if v.eq.is_straightline():
                 if not v.eq.switched in eqs and len(v.eq.get_side("left")) == 1:
                     var_order[v.eq.get_side("left")[0]] = c
-                    if c <= max([var_order[x] for x in v.eq.get_vars_side("right")]):
-                        return None
                     c += 1
                     eqs.add(v.eq)
             else:
                 return None
+
+        for v in cp.vertices:
+            if v.eq in eqs:
+                c = var_order[v.eq.get_side("left")[0]]
+                if c <= max([var_order[x] for x in v.eq.get_vars_side("right")]):
+                    return None
 
         cp.subgraph(eqs)
         for v in cp.vertices:
