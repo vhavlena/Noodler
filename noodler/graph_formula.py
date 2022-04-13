@@ -276,16 +276,16 @@ class StringEqGraph:
 
         for node in ts:
             order[node.eq] = c
+            node.eval_formula = StringConstraint(ConstraintType.TRUE)
             c += 1
 
         for i in range(len(ts)):
             ts[i].succ = [ s for s in ts[i].succ if order[s.eq] < order[ts[i].eq] ]
             if i != len(ts) - 1:
                 ts[i].succ.append(ts[i+1])
-            if ts[i].succ:
-                ts[i].eval_formula = StringConstraint.build_op(ConstraintType.AND, [StringConstraint(ConstraintType.EQ, v.eq) for v in ts[i].succ])
-            else:
-                ts[i].eval_formula = StringConstraint(ConstraintType.TRUE)
+
+            for s in ts[i].succ:
+                s.eval_formula = StringConstraint(ConstraintType.AND, s.eval_formula, StringConstraint(ConstraintType.EQ, ts[i].eq))
 
 
 
@@ -564,7 +564,7 @@ class StringEqGraph:
                 elif len(eq.get_side("right")) == 1:
                     eqs.append(eq.switched)
                 else:
-                    return None
+                    eqs.append(eq)
 
         nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
         all_nodes = [ nodes[eq] for eq in eqs]
