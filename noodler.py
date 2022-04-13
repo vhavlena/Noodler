@@ -52,6 +52,15 @@ def main(args: argparse.Namespace):
         if sl is not None:
             graph = sl
         elif not is_disj:
+            graph = StringEqGraph.get_eqs_graph_quick_sat(cnf)
+            if graph is not None:
+                graph.linearize()
+                gn: GraphNoodler = GraphNoodler(graph, aut)
+                sett: GraphNoodlerSettings = GraphNoodlerSettings(True, StrategyType.BFS, True)
+                sat = gn.is_sat(sett)
+                if sat:
+                    print("sat")
+                    exit(0)
             graph = StringEqGraph.get_eqs_graph_ring(cnf)
 
     except NotImplementedError:
@@ -65,6 +74,7 @@ def main(args: argparse.Namespace):
     sett: GraphNoodlerSettings = GraphNoodlerSettings()
     sett.balance_check = sl is None
     sett.strategy = StrategyType.BFS if sl is None else StrategyType.DFS
+    sett.use_cache = False
 
     sat = gn.is_sat(sett)
 

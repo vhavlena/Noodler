@@ -31,6 +31,33 @@ from .core import create_automata_constraints
 DEFAULTALPHABET = "abc"
 
 
+def compare_aut_constraints(a1: AutConstraints, a2: AutConstraints) -> bool:
+    """!
+    Compare languages of aut constraints. We dont need to keep equal aut
+    constraints.
+    """
+    if a1.keys() != a2.keys():
+        return False
+
+    for k1, v1 in a1.items():
+        if not awalipy.are_equivalent(v1, a2[k1]):
+            return False
+    return True
+
+
+def compare_aut_constraints_str(a1, a2) -> bool:
+    """!
+    Compare string representatives of aut constraints.
+    """
+    if a1.keys() != a2.keys():
+        return False
+
+    for k1, v1 in a1.items():
+        if v1 != a2[k1]:
+            return False
+    return True
+
+
 def awalipy_allchar(alphabet: str) -> RE:
     """
     Create awalipy RE for Σ given as a string of characters.

@@ -43,16 +43,6 @@ StrConstraints = Dict[str, str]
 Constraints = Union[AutConstraints, REConstraints, StrConstraints]
 
 
-def compare_aut_constraints(a1: AutConstraints, a2: AutConstraints) -> bool:
-    if a1.keys() != a2.keys():
-        return False
-
-    for k1, v1 in a1.items():
-        if not awalipy.are_equivalent(v1, a2[k1]):
-            return False
-    return True
-
-
 def is_straightline(equations: Sequence[StringEquation]) -> bool:
     """
     Check if SE system is in Single Static Assignment (SSA) form.

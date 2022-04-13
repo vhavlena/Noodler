@@ -228,6 +228,67 @@ class StringEqGraph:
         return ret
 
 
+    def topological_sort(self, init: StringEqNode, seen: Set[StringEquation]):
+        """!
+        Topological sort of the graph. Modified from https://stackoverflow.com/questions/
+        47192626/deceptively-simple-implementation-of-topological-sorting-in-python
+
+        @param init: Initial vertex
+        @param seen: All so-far seen vertices
+        @return list of vertices matching topological order modulo cycles (that
+            are allowed)
+        """
+        stack = []
+        order = []
+        q = [init]
+        while q:
+            v = q.pop()
+            if v.eq not in seen:
+                seen.add(v.eq)
+                q.extend(v.succ)
+
+                while stack and v.eq not in { s.eq for s in stack[-1].succ }:
+                    order.append(stack.pop())
+                stack.append(v)
+
+        return stack + order[::-1]
+
+
+    def linearize(self):
+        """!
+        Linearize the graph to a line graph with possible cycles (extending the
+        topological order).
+        """
+        seen = set()
+        order = {}
+        c = 0
+        ts = []
+
+        eqs = { v.eq for v in self.vertices }
+        for v in self.vertices:
+            for s in v.succ:
+                eqs.discard(s.eq)
+
+        for ini in [v for v in self.initials if v.eq in eqs] + self.initials:
+            sr =  self.topological_sort(ini, seen)
+            seen = seen | {v.eq for v in sr}
+            ts = sr + ts
+
+        for node in ts:
+            order[node.eq] = c
+            c += 1
+
+        for i in range(len(ts)):
+            ts[i].succ = [ s for s in ts[i].succ if order[s.eq] < order[ts[i].eq] ]
+            if i != len(ts) - 1:
+                ts[i].succ.append(ts[i+1])
+            if ts[i].succ:
+                ts[i].eval_formula = StringConstraint.build_op(ConstraintType.AND, [StringConstraint(ConstraintType.EQ, v.eq) for v in ts[i].succ])
+            else:
+                ts[i].eval_formula = StringConstraint(ConstraintType.TRUE)
+
+
+
     @staticmethod
     def reduce_regular_eqs(equations: Sequence[Sequence[StringEquation]], aut_constraints) -> Sequence[Sequence[StringEquation]]:
         """!
@@ -331,7 +392,7 @@ class StringEqGraph:
                         aut = q.automaton_for_side(s2).proper().minimal_automaton().trim()
                     else:
                         aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().minimal_automaton().trim()
-                aut_constraints[var] = awalipy.product(aut, aut_constraints[var]).proper().trim()
+                aut_constraints[var] = awalipy.product(aut, aut_constraints[var]).proper().minimal_automaton().trim()
 
             return modif
 
@@ -477,6 +538,46 @@ class StringEqGraph:
         nodes[eqs[len(eqs)-1]].succ.append(nodes[eqs[0]])
 
         return StringEqGraph(all_nodes, [nodes[eqs[-1]]], list(nodes.values()))
+
+
+    @staticmethod
+    def get_eqs_graph_quick_sat(equations: Sequence[Sequence[StringEquation]]) -> "StringEqGraph":
+        """!
+        Get graph of equations suitable for quick satisfiability checking. Underapproximates
+        the behaviour (If the noodler says sat, it is indeed sat. If unsat it is not conclusive).
+
+        @param equations: Sequence of string equations representing a conjunction of equations
+        @return String Equation Graph
+        """
+
+        nodes: Dict[StringEquation, StringEqNode] = dict()
+        all_nodes = []
+        eqs = []
+
+        for clause in equations:
+            cl = []
+            assert(len(clause) == 1)
+
+            for eq in clause:
+                if len(eq.get_side("left")) == 1:
+                    eqs.append(eq)
+                elif len(eq.get_side("right")) == 1:
+                    eqs.append(eq.switched)
+                else:
+                    return None
+
+        nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
+        all_nodes = [ nodes[eq] for eq in eqs]
+
+        for eq in eqs:
+            for eq_target in eqs:
+                if eq == eq_target:
+                    continue
+                if len(eq.get_vars_side("left") & eq_target.get_vars()) != 0:
+                    nodes[eq].succ.append(nodes[eq_target])
+                    nodes[eq_target].eval_formula = StringConstraint(ConstraintType.AND, nodes[eq_target].eval_formula, StringConstraint(ConstraintType.EQ,eq))
+
+        return StringEqGraph(all_nodes, list(nodes.values()), list(nodes.values()))
 
 
     @staticmethod

@@ -7,13 +7,13 @@ from dataclasses import dataclass
 from enum import Enum
 
 # Classes
-from .core import StringEquation, compare_aut_constraints
-from .sequery import AutSingleSEQuery, SingleSEQuery, MultiSEQuery
+from .core import StringEquation
+from .sequery import AutSingleSEQuery, SingleSEQuery, MultiSEQuery, compare_aut_constraints, compare_aut_constraints_str
 # Types
 from .core import Aut, AutConstraints, SegAut
 
 from .graph_formula import StringEqNode, StringEqGraph
-from .algos import eps_preserving_product, eps_segmentation, multiop, single_final_init, split_segment_aut
+from .algos import eps_preserving_product, eps_segmentation, multiop, single_final_init, split_segment_aut, get_shortest_strings_bfs
 from .noodler import noodlify, noodlify_query, create_unified_query, is_unified, SimpleNoodler
 
 
@@ -26,6 +26,7 @@ class StrategyType(Enum):
 class GraphNoodlerSettings:
     balance_check : bool = True
     strategy : StrategyType = StrategyType.BFS
+    use_cache : bool = False
 
 
 class GraphNoodler:
@@ -72,9 +73,9 @@ class GraphNoodler:
 
         _check_sat()
         for ini in self.graph.initials:
-            if sat[ini.eq]:
-                return True
-        return False
+            if not sat[ini.eq]:
+                return False
+        return True
 
 
     def is_sat(self, sett : GraphNoodlerSettings):
@@ -105,9 +106,9 @@ class GraphNoodler:
             elif sett.strategy == StrategyType.BFS:
                 node, query = Q.popleft()
 
-            # if any(compare_aut_constraints(query, i) for i in cache[node.eq]):
-            #     continue
-            # cache[node.eq].append(query)
+            if sett.use_cache and any(compare_aut_constraints(query, i) for i in cache[node.eq]):
+                continue
+            cache[node.eq].append(query)
 
             cur_query = AutSingleSEQuery(node.eq, query)
 
