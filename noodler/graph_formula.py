@@ -280,12 +280,15 @@ class StringEqGraph:
             c += 1
 
         for i in range(len(ts)):
-            ts[i].succ = [ s for s in ts[i].succ if order[s.eq] < order[ts[i].eq] ]
+            ts[i].succ = [] # [ s for s in ts[i].succ if order[s.eq] < order[ts[i].eq] ]
             if i != len(ts) - 1:
                 ts[i].succ.append(ts[i+1])
 
             for s in ts[i].succ:
                 s.eval_formula = StringConstraint(ConstraintType.AND, s.eval_formula, StringConstraint(ConstraintType.EQ, ts[i].eq))
+
+        self.initials = [ts[0]]
+        self.finals = [ts[-1]]
 
 
 
@@ -392,7 +395,10 @@ class StringEqGraph:
                         aut = q.automaton_for_side(s2).proper().minimal_automaton().trim()
                     else:
                         aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().minimal_automaton().trim()
-                aut_constraints[var] = awalipy.product(aut, aut_constraints[var]).proper().minimal_automaton().trim()
+                prod = awalipy.product(aut, aut_constraints[var]).proper().trim()
+                if prod.num_states() != 0:
+                    prod = prod.minimal_automaton().trim()
+                aut_constraints[var] = prod
 
             return modif
 
@@ -522,8 +528,8 @@ class StringEqGraph:
             cl = []
             assert(len(clause) == 1)
             for eq in clause:
-                cl.append(eq)
                 cl.append(eq.switched)
+                cl.append(eq)
             eqs += cl
 
         nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
@@ -570,10 +576,13 @@ class StringEqGraph:
         all_nodes = [ nodes[eq] for eq in eqs]
 
         for eq in eqs:
+            nodes[eq.switched] = StringEqNode([nodes[eq]], StringConstraint(ConstraintType.TRUE), eq.switched, 0)
+            all_nodes.append(nodes[eq.switched])
+
             for eq_target in eqs:
                 if eq == eq_target:
                     continue
-                if len(eq.get_vars_side("left") & eq_target.get_vars()) != 0:
+                if len(eq.get_vars_side("left") & eq_target.get_vars()) != 0 or len(eq.get_vars_side("right") & eq_target.get_vars_side("right")) != 0:
                     nodes[eq].succ.append(nodes[eq_target])
                     nodes[eq_target].eval_formula = StringConstraint(ConstraintType.AND, nodes[eq_target].eval_formula, StringConstraint(ConstraintType.EQ,eq))
 

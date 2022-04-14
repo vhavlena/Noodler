@@ -56,7 +56,7 @@ def main(args: argparse.Namespace):
             if graph is not None:
                 graph.linearize()
                 gn: GraphNoodler = GraphNoodler(graph, aut)
-                sett: GraphNoodlerSettings = GraphNoodlerSettings(True, StrategyType.BFS, True)
+                sett: GraphNoodlerSettings = GraphNoodlerSettings(True, StrategyType.BFS, False, True)
                 sat = gn.is_sat(sett)
                 if sat:
                     print("sat")
@@ -75,6 +75,7 @@ def main(args: argparse.Namespace):
     sett.balance_check = sl is None
     sett.strategy = StrategyType.BFS if sl is None else StrategyType.DFS
     sett.use_cache = False
+    sett.both_side = False
 
     sat = gn.is_sat(sett)
 

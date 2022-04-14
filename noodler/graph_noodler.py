@@ -27,6 +27,7 @@ class GraphNoodlerSettings:
     balance_check : bool = True
     strategy : StrategyType = StrategyType.BFS
     use_cache : bool = False
+    both_side : bool = False
 
 
 class GraphNoodler:
@@ -39,7 +40,7 @@ class GraphNoodler:
         self.graph = vert
 
 
-    def is_graph_stable(self, constr: AutConstraints, balance_check: bool):
+    def is_graph_stable(self, constr: AutConstraints, balance_check: bool, both_side: bool):
         """!
         Is a graph of string equations stable (=each node is stable)?
 
@@ -69,7 +70,7 @@ class GraphNoodler:
 
         for v in self.graph.vertices:
             aux = AutSingleSEQuery(v.eq, constr)
-            sat[v.eq] = aux.is_sub_balanced()
+            sat[v.eq] = aux.is_balanced() if both_side else aux.is_sub_balanced()
 
         _check_sat()
         for ini in self.graph.initials:
@@ -87,7 +88,7 @@ class GraphNoodler:
         """
 
         if len(self.graph.vertices) == 0:
-            return self.is_graph_stable(self.aut_constr, sett.balance_check)
+            return self.is_graph_stable(self.aut_constr, sett.balance_check, sett.both_side)
 
         for v, aut in self.aut_constr.items():
             if aut.num_useful_states() == 0:
@@ -106,9 +107,11 @@ class GraphNoodler:
             elif sett.strategy == StrategyType.BFS:
                 node, query = Q.popleft()
 
-            if sett.use_cache and any(compare_aut_constraints(query, i) for i in cache[node.eq]):
-                continue
-            cache[node.eq].append(query)
+            if sett.use_cache:
+                query_str = { k:get_shortest_strings_bfs(v) for k, v in query.items() }
+                if any(compare_aut_constraints_str(query_str, i) for i in cache[node.eq]):
+                    continue
+                cache[node.eq].append(query_str)
 
             cur_query = AutSingleSEQuery(node.eq, query)
 
@@ -119,8 +122,8 @@ class GraphNoodler:
                 cur_constraints: AutConstraints = query.copy()
                 cur_constraints.update(noodle.constraints)
 
-                if (node.eq in fin_eq) and self.is_graph_stable(cur_constraints, sett.balance_check):
-                   return True
+                if (node.eq in fin_eq) and self.is_graph_stable(cur_constraints, sett.balance_check, sett.both_side):
+                    return True
 
                 for s in node.succ:
                     Q.append((s, cur_constraints))
