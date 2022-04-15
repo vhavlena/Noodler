@@ -285,7 +285,7 @@ class StringEqGraph:
                 ts[i].succ.append(ts[i+1])
 
             for s in ts[i].succ:
-                s.eval_formula = StringConstraint(ConstraintType.AND, s.eval_formula, StringConstraint(ConstraintType.EQ, ts[i].eq))
+                ts[i].eval_formula = StringConstraint(ConstraintType.AND, s.eval_formula, StringConstraint(ConstraintType.EQ, s.eq))
 
         self.initials = [ts[0]]
         self.finals = [ts[-1]]

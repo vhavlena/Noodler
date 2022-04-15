@@ -167,6 +167,12 @@ class StringEquation:
         return len(self.get_side("left")) == 1 or len(self.get_side("right")) == 1
 
 
+    def is_solution(self, assignment) -> bool:
+        left = "".join(list(map(lambda x: assignment[x], self.left)))
+        right = "".join(list(map(lambda x: assignment[x], self.right)))
+        return left == right
+
+
     def __str__(self):
         """Print equation in the form of left=right."""
         return f"{self.left} = {self.right}"
