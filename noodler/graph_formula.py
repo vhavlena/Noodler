@@ -1,5 +1,5 @@
 
-from typing import Dict, Type, Union, Sequence, Set
+from typing import Dict, Type, Union, Sequence, Set, Optional
 from enum import Enum
 from dataclasses import dataclass
 from collections import defaultdict
@@ -8,7 +8,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 
 from .core import StringEquation
-from .sequery import AutSingleSEQuery, SingleSEQuery, MultiSEQuery, AutConstraints
+from .sequery import AutSingleSEQuery, SingleSEQuery, MultiSEQuery, AutConstraints, StringConstraintQuery
 from .formula import StringConstraint, ConstraintType
 
 import itertools
@@ -24,8 +24,16 @@ class StringEqNode:
     """
     succ : Sequence["StringEqNode"]
     eval_formula : StringConstraint
-    eq : StringEquation
+    eq : Optional[StringEquation]
     id : int
+    label : object
+
+    def __init__(self, s, f, e, i):
+        self.succ = s
+        self.eval_formula = f
+        self.eq = e
+        self.id = i
+        self.label = None
 
     def __eq__(self, other):
         if not isinstance(other, StringEqNode):
@@ -110,6 +118,34 @@ class StringEqGraph:
         for v in self.vertices:
             v.id = c
             c += 1
+
+
+    def get_scc_graph(self) -> "StringEqGraph":
+        vert = []
+        scc_map = dict()
+        eq_map = dict()
+        succ = defaultdict(lambda: set())
+        cnt = 0
+
+        for scc in self.get_sccs():
+            if len(scc) == 0:
+                continue
+            new = StringEqNode([], StringConstraint(ConstraintType.TRUE), scc[0].eq, cnt)
+            new.label = scc
+            vert.append(new)
+            scc_map[cnt] = new
+            for v in scc:
+                eq_map[v.eq] = cnt
+            cnt += 1
+
+        for v in self.vertices:
+            for s in v.succ:
+                succ[eq_map[v.eq]].add(eq_map[s.eq])
+
+        for k, v in succ.items():
+            scc_map[k].succ = [ scc_map[n] for n in v if n != k ]
+
+        return StringEqGraph(vert, vert, [])
 
 
     def get_sccs(self) -> Sequence[Sequence[StringEqNode]]:
@@ -264,15 +300,26 @@ class StringEqGraph:
         c = 0
         ts = []
 
-        eqs = { v.eq for v in self.vertices }
-        for v in self.vertices:
+        scc_graph = self.get_scc_graph()
+        eqs = { v.eq for v in scc_graph.vertices }
+        for v in scc_graph.vertices:
             for s in v.succ:
                 eqs.discard(s.eq)
 
-        for ini in [v for v in self.initials if v.eq in eqs] + self.initials:
+        for ini in [v for v in scc_graph.initials if v.eq in eqs] + scc_graph.initials:
             sr =  self.topological_sort(ini, seen)
             seen = seen | {v.eq for v in sr}
             ts = sr + ts
+
+        tslist = []
+        for t in ts:
+            for v in t.label:
+                new = StringEqNode([], StringConstraint(ConstraintType.TRUE), v.eq.switched, 0)
+                tslist.append(new)
+            tslist.extend(t.label)
+
+        ts = tslist
+        self.vertices = ts
 
         for node in ts:
             order[node.eq] = c
@@ -339,7 +386,12 @@ class StringEqGraph:
 
             new_var = _new_var()
             aut_constraints[new_var] = aut
-            modif.append(StringEquation(eq.get_side(side2), [new_var]))
+            aut_side = q.automaton_for_side(side2)
+
+            comp = aut.proper().minimal_automaton().complement()
+            tmp = aut_side.product(comp).trim()
+            if len(tmp.useful_states()) != 0:
+                modif.append(StringEquation(eq.get_side(side2), [new_var]))
 
 
         def _remove_unique_vars(eqs):
@@ -412,6 +464,145 @@ class StringEqGraph:
             a = len(eq_new)
 
         return eq_new
+
+
+    @staticmethod
+    def remove_extension(equations: Sequence[Sequence[StringEquation]], aut_constraints: AutConstraints, scq: StringConstraintQuery):
+
+        occur = defaultdict(lambda: 0)
+        vars = set()
+        begin_map = defaultdict(lambda: [])
+        end_map = defaultdict(lambda: [])
+        begin_star_vars = set()
+        end_star_vars = set()
+
+        for con in equations:
+            assert(len(con) == 1)
+            for v in con[0].get_vars():
+                occur[v] += 1
+            vars = vars | con[0].get_vars()
+
+        for v in vars:
+            star = scq.sigma_star_aut()
+            star = star.concatenate(aut_constraints[v]).proper().trim()
+            if awalipy.are_equivalent(star, aut_constraints[v]):
+                begin_star_vars.add(v)
+            star = scq.sigma_star_aut()
+            star = aut_constraints[v].concatenate(star).proper().trim()
+            if awalipy.are_equivalent(star, aut_constraints[v]):
+                end_star_vars.add(v)
+
+        for con in equations:
+            assert(len(con) == 1)
+            eq = con[0]
+
+            if len(eq.get_side("left")) == 1:
+                v = eq.get_side("left")[0]
+                r = eq.get_side("right")
+                if len(r) > 1 and r[1] in begin_star_vars and occur[r[1]] == 1:
+                    begin_map[r[0]].append(v)
+                if len(r) > 1 and r[-2] in end_star_vars and occur[r[-2]] == 1:
+                    end_map[r[-1]].append(v)
+
+        remove_beg = set()
+        remove_end = set()
+        for k, v in begin_map.items():
+            if occur[k] == len(v) and len(set(v)) == 1:
+                remove_beg.add((v[0], k))
+        for k, v in end_map.items():
+            if occur[k] == len(v) and len(set(v)) == 1:
+                remove_end.add((v[0], k))
+
+        eqs = []
+        for con in equations:
+            eq = copy.copy(con[0])
+            for l, r in remove_beg:
+                if eq.get_side("left") == [l] and eq.get_side("right")[0] == r:
+                    eq = StringEquation(eq.get_side("left"), eq.get_side("right")[1:])
+                    break
+            for l, r in remove_end:
+                if eq.get_side("left") == [l] and eq.get_side("right")[-1] == r:
+                    eq = StringEquation(eq.get_side("left"), eq.get_side("right")[0:-1])
+                    break
+            eqs.append([eq])
+
+        return eqs
+
+
+    @staticmethod
+    def propagate_variables(equations: Sequence[Sequence[StringEquation]], aut_constraints: AutConstraints, scq: StringConstraintQuery):
+        vars = set()
+        free_vars = set()
+        for con in equations:
+            assert(len(con) == 1)
+            vars = vars | con[0].get_vars()
+
+        for v in vars:
+            star = scq.sigma_star_aut()
+            if awalipy.are_equivalent(star, aut_constraints[v]):
+                free_vars.add(v)
+
+        replace = dict()
+        def_eqs = []
+        for con in equations:
+            eq = copy.copy(con[0])
+            if len(eq.get_side("left")) == 1 and len(eq.get_side("right")) == 1:
+                l = eq.get_side("left")[0]
+                r = eq.get_side("right")[0]
+                if r in free_vars:
+                    replace[r] = l
+                elif l in free_vars:
+                    replace[l] = r
+
+        eqs = []
+        for con in equations:
+            eq = con[0]
+            eq = eq.replace(replace)
+            if eq.get_side("left") == eq.get_side("right"):
+                continue
+            eqs.append([eq])
+
+        return eqs
+
+
+
+    @staticmethod
+    def propagate_eps(equations: Sequence[Sequence[StringEquation]], aut_constraints: AutConstraints, scq: StringConstraintQuery):
+
+        def _is_eps(var, aut):
+            aut = aut.proper().minimal_automaton().trim()
+            return len(aut.transitions()) == 0
+
+        vars = set()
+        for con in equations:
+            assert(len(con) == 1)
+            vars = vars | con[0].get_vars()
+
+        eps = set()
+
+        for v in vars:
+            if _is_eps(v, aut_constraints[v]):
+                eps.add(v)
+
+        for con in equations:
+            assert(len(con) == 1)
+            eq = con[0]
+            if all(v in eps for v in eq.get_side("left")):
+                eps = eps | eq.get_vars_side("right")
+            if all(v in eps for v in eq.get_side("right")):
+                eps = eps | eq.get_vars_side("left")
+
+        eqs = []
+        for con in equations:
+            eq = con[0]
+            eq = eq.remove(eps)
+            if eq.get_side("left") == eq.get_side("right"):
+                continue
+            eqs.append([eq])
+
+        return eqs
+
+
 
 
     @staticmethod
@@ -565,19 +756,18 @@ class StringEqGraph:
             assert(len(clause) == 1)
 
             for eq in clause:
-                if len(eq.get_side("left")) == 1:
-                    eqs.append(eq)
-                elif len(eq.get_side("right")) == 1:
-                    eqs.append(eq.switched)
-                else:
-                    eqs.append(eq)
+                eqp = eq
+                if len(eq.get_side("right")) == 1:
+                    eqp = eq.switched
+                eqs.append(eqp)
 
         nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
         all_nodes = [ nodes[eq] for eq in eqs]
 
         for eq in eqs:
-            nodes[eq.switched] = StringEqNode([nodes[eq]], StringConstraint(ConstraintType.TRUE), eq.switched, 0)
-            all_nodes.append(nodes[eq.switched])
+            # nodes[eq.switched] = StringEqNode([nodes[eq]], StringConstraint(ConstraintType.TRUE), eq.switched, 0)
+            # all_nodes.append(nodes[eq.switched])
+            # nodes[eq].succ.append(nodes[eq.switched])
 
             for eq_target in eqs:
                 if eq == eq_target:

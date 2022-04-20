@@ -173,6 +173,27 @@ class StringEquation:
         return left == right
 
 
+    def replace(self,repl_map):
+        l = []
+        r = []
+        for sym in self.left:
+            l.append(repl_map.get(sym, sym))
+        for sym in self.right:
+            r.append(repl_map.get(sym, sym))
+        return StringEquation(l, r)
+
+    def remove(self, rem):
+        l = []
+        r = []
+        for sym in self.left:
+            if sym not in rem:
+                l.append(sym)
+        for sym in self.right:
+            if sym not in rem:
+                r.append(sym)
+        return StringEquation(l, r)
+
+
     def __str__(self):
         """Print equation in the form of left=right."""
         return f"{self.left} = {self.right}"

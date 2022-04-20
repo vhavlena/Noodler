@@ -95,6 +95,7 @@ class GraphNoodler:
                 return False
 
         cache: Dict[StringEquation, Sequence[AutConstraints]] = defaultdict(lambda: [])
+        #cache_map = defaultdict(lambda: defaultdict(lambda: set()))
         fin_eq = { c.eq for c in self.graph.finals }
 
         Q = deque([])
@@ -107,13 +108,28 @@ class GraphNoodler:
             elif sett.strategy == StrategyType.BFS:
                 node, query = Q.popleft()
 
-            if sett.use_cache:
-                query_str = { k:get_shortest_strings_bfs(v) for k, v in query.items() }
-                if any(compare_aut_constraints_str(query_str, i) for i in cache[node.eq]):
-                    continue
-                cache[node.eq].append(query_str)
+            # if sett.use_cache:
+            #     query_str = { k:get_shortest_strings_bfs(v) for k, v in query.items() }
+            #     if any(compare_aut_constraints_str(query_str, i) for i in cache[node.eq]):
+            #         print("chache")
+            #         continue
+            #     cache[node.eq].append(query_str)
 
+            query_str = { k:get_shortest_strings_bfs(v) for k, v in query.items() }
             cur_query = AutSingleSEQuery(node.eq, query)
+
+            # if sett.use_cache:
+            #     query_str = { k:get_shortest_strings_bfs(v) for k, v in query.items() if k in node.eq.get_vars() }
+            #     query_tuple = frozenset([frozenset(get_shortest_strings_bfs(v)) for k, v in query.items() if k in node.eq.get_vars() ])
+            #     if any(compare_aut_constraints_str(query_str, i) for i in cache[node.eq]):
+            #         #continue
+            #         suc = cache_map[node.eq][query_tuple]
+            #         for noodle in suc:
+            #             cur_constraints: AutConstraints = query.copy()
+            #             cur_constraints.update(noodle.constraints)
+            #             for s in node.succ:
+            #                 Q.append((s, cur_constraints))
+
 
             noodler = SimpleNoodler(cur_query)
             noodles: Sequence[SingleSEQuery] = noodler.noodlify()

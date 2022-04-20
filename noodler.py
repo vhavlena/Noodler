@@ -43,9 +43,12 @@ def main(args: argparse.Namespace):
         is_disj: bool = reduce(lambda x,y: x or y, [len(l) > 1 for l in cnf], False)
 
         if not is_disj:
+            cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
+            cnf = StringEqGraph.propagate_eps(cnf, aut, scq)
             cnf, aut = StringEqGraph.reduce_common_sub(cnf, aut)
 
         cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
+        cnf = StringEqGraph.remove_extension(cnf, aut, scq)
         graph = StringEqGraph.get_eqs_graph(cnf)
 
         sl = graph.straight_line()
