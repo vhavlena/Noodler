@@ -555,12 +555,15 @@ class StringEqGraph:
                     replace[l] = r
 
         eqs = []
+        eq_set = set()
         for con in equations:
             eq = con[0]
             eq = eq.replace(replace)
             if eq.get_side("left") == eq.get_side("right"):
                 continue
-            eqs.append([eq])
+            if eq not in eq_set:
+                eqs.append([eq])
+                eq_set.add(eq)
 
         return eqs
 

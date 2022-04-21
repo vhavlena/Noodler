@@ -28,6 +28,7 @@ class GraphNoodlerSettings:
     strategy : StrategyType = StrategyType.BFS
     use_cache : bool = False
     both_side : bool = False
+    use_retrieval : bool = False
 
 
 class GraphNoodler:
@@ -63,7 +64,6 @@ class GraphNoodler:
 
         sat: Dict[StringEquation, bool] = dict()
 
-
         if not balance_check:
             return all(len(v.useful_states()) > 0 for k, v in constr.items())
 
@@ -72,11 +72,13 @@ class GraphNoodler:
             aux = AutSingleSEQuery(v.eq, constr)
             sat[v.eq] = aux.is_balanced() if both_side else aux.is_sub_balanced()
 
+
+        failed = [ v for v in self.graph.vertices if not sat[v.eq] ]
         _check_sat()
         for ini in self.graph.initials:
             if not sat[ini.eq]:
-                return False
-        return True
+                return False, failed
+        return True, None
 
 
     def is_sat(self, sett : GraphNoodlerSettings):
@@ -88,7 +90,7 @@ class GraphNoodler:
         """
 
         if len(self.graph.vertices) == 0:
-            return self.is_graph_stable(self.aut_constr, sett.balance_check, sett.both_side)
+            return self.is_graph_stable(self.aut_constr, sett.balance_check, sett.both_side)[0]
 
         for v, aut in self.aut_constr.items():
             if aut.num_useful_states() == 0:
@@ -138,8 +140,16 @@ class GraphNoodler:
                 cur_constraints: AutConstraints = query.copy()
                 cur_constraints.update(noodle.constraints)
 
-                if (node.eq in fin_eq) and self.is_graph_stable(cur_constraints, sett.balance_check, sett.both_side):
-                    return True
+                if (node.eq in fin_eq):
+                    st, failed = self.is_graph_stable(cur_constraints, sett.balance_check, sett.both_side)
+                    if st:
+                        return True
+                    elif sett.use_retrieval:
+                        for v in failed:
+                            if sett.strategy == StrategyType.DFS:
+                                Q.insert(0, (v, cur_constraints))
+                            elif sett.strategy == StrategyType.BFS:
+                                Q.append((v, cur_constraints))
 
                 for s in node.succ:
                     Q.append((s, cur_constraints))

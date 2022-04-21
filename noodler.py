@@ -3,6 +3,7 @@
 import argparse
 import sys
 import z3
+import time
 
 from functools import reduce
 from git import Repo
@@ -15,6 +16,16 @@ from noodler.graph_noodler import *
 from noodler.graph_formula import StringEqGraph
 
 
+def print_result(sat, start, args):
+    sat_str = "sat" if sat else "unsat"
+    if args.csv:
+        end = time.time()
+        print("result: {0}".format(sat_str))
+        print("time: {0}".format(round(end-start, 2)))
+    else:
+        print(sat_str)
+
+
 def main(args: argparse.Namespace):
     filename = args.filename
     bidi = args.bidi
@@ -25,6 +36,7 @@ def main(args: argparse.Namespace):
         print(commit_hash[0:8])
         exit(0)
 
+    start = time.time()
 
     try:
         smt_parser = SmtlibParserHackAbc(filename)
@@ -37,7 +49,7 @@ def main(args: argparse.Namespace):
         cnf, aut = scq.get_queries_cnf()
 
         if not StringEqGraph.check_length_compatible(cnf, aut):
-            print("unsat")
+            print_result(False, start, args)
             exit(0)
 
         is_disj: bool = reduce(lambda x,y: x or y, [len(l) > 1 for l in cnf], False)
@@ -48,6 +60,10 @@ def main(args: argparse.Namespace):
             cnf, aut = StringEqGraph.reduce_common_sub(cnf, aut)
 
         cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
+        cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
+        cnf, aut = StringEqGraph.reduce_common_sub(cnf, aut)
+
+        cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
         cnf = StringEqGraph.remove_extension(cnf, aut, scq)
         graph = StringEqGraph.get_eqs_graph(cnf)
 
@@ -59,10 +75,10 @@ def main(args: argparse.Namespace):
             if graph is not None:
                 graph.linearize()
                 gn: GraphNoodler = GraphNoodler(graph, aut)
-                sett: GraphNoodlerSettings = GraphNoodlerSettings(True, StrategyType.DFS, False, False)
+                sett: GraphNoodlerSettings = GraphNoodlerSettings(True, StrategyType.DFS, False, False, True)
                 sat = gn.is_sat(sett)
                 if sat:
-                    print("sat")
+                    print_result(True, start, args)
                     exit(0)
             graph = StringEqGraph.get_eqs_graph_ring(cnf)
 
@@ -79,13 +95,10 @@ def main(args: argparse.Namespace):
     sett.strategy = StrategyType.BFS if sl is None else StrategyType.DFS
     sett.use_cache = False
     sett.both_side = False
+    sett.use_retrieval = False
 
     sat = gn.is_sat(sett)
-
-    if sat:
-        print("sat")
-    else:
-        print("unsat")
+    print_result(sat, start, args)
 
 
 if __name__ == "__main__":
@@ -98,6 +111,7 @@ if __name__ == "__main__":
     parser.add_argument("--bidi", action="store_true")
     parser.add_argument("--version", action="store_true")
     parser.add_argument("filename", type=str, nargs="?")
+    parser.add_argument("--csv", action="store_true")
 
     args = parser.parse_args()
     main(args)
