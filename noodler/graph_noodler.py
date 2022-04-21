@@ -65,7 +65,7 @@ class GraphNoodler:
         sat: Dict[StringEquation, bool] = dict()
 
         if not balance_check:
-            return all(len(v.useful_states()) > 0 for k, v in constr.items())
+            return all(len(v.useful_states()) > 0 for k, v in constr.items()), None
 
 
         for v in self.graph.vertices:
@@ -144,7 +144,7 @@ class GraphNoodler:
                     st, failed = self.is_graph_stable(cur_constraints, sett.balance_check, sett.both_side)
                     if st:
                         return True
-                    elif sett.use_retrieval:
+                    elif sett.use_retrieval and failed is not None:
                         for v in failed:
                             if sett.strategy == StrategyType.DFS:
                                 Q.insert(0, (v, cur_constraints))
