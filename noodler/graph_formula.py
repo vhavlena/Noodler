@@ -517,11 +517,11 @@ class StringEqGraph:
         for con in equations:
             eq = copy.copy(con[0])
             for l, r in remove_beg:
-                if eq.get_side("left") == [l] and eq.get_side("right")[0] == r:
+                if eq.get_side("left") == [l] and eq.get_side("right")[0] == r and len(eq.get_side("right")) > 1:
                     eq = StringEquation(eq.get_side("left"), eq.get_side("right")[1:])
                     break
             for l, r in remove_end:
-                if eq.get_side("left") == [l] and eq.get_side("right")[-1] == r:
+                if eq.get_side("left") == [l] and eq.get_side("right")[-1] == r and len(eq.get_side("right")) > 1:
                     eq = StringEquation(eq.get_side("left"), eq.get_side("right")[0:-1])
                     break
             eqs.append([eq])
@@ -531,6 +531,34 @@ class StringEqGraph:
 
     @staticmethod
     def propagate_variables(equations: Sequence[Sequence[StringEquation]], aut_constraints: AutConstraints, scq: StringConstraintQuery):
+
+        def _remove_id(equations, free_vars):
+            replace = dict()
+            def_eqs = []
+            for con in equations:
+                eq = copy.copy(con[0])
+                if len(eq.get_side("left")) == 1 and len(eq.get_side("right")) == 1:
+                    l = eq.get_side("left")[0]
+                    r = eq.get_side("right")[0]
+                    if r in free_vars:
+                        replace[r] = l
+                        break
+                    elif l in free_vars:
+                        replace[l] = r
+                        break
+
+            eqs = []
+            eq_set = set()
+            for con in equations:
+                eq = con[0]
+                eq = eq.replace(replace)
+                if eq.get_side("left") == eq.get_side("right"):
+                    continue
+                if eq not in eq_set:
+                    eqs.append([eq])
+                    eq_set.add(eq)
+            return eqs
+
         vars = set()
         free_vars = set()
         for con in equations:
@@ -542,29 +570,65 @@ class StringEqGraph:
             if awalipy.are_equivalent(star, aut_constraints[v]):
                 free_vars.add(v)
 
-        replace = dict()
-        def_eqs = []
-        for con in equations:
-            eq = copy.copy(con[0])
-            if len(eq.get_side("left")) == 1 and len(eq.get_side("right")) == 1:
-                l = eq.get_side("left")[0]
-                r = eq.get_side("right")[0]
-                if r in free_vars:
-                    replace[r] = l
-                elif l in free_vars:
-                    replace[l] = r
 
+
+        # replace = dict()
+        # def_eqs = []
+        # for con in equations:
+        #     eq = copy.copy(con[0])
+        #     if len(eq.get_side("left")) == 1 and len(eq.get_side("right")) == 1:
+        #         l = eq.get_side("left")[0]
+        #         r = eq.get_side("right")[0]
+        #         if r in free_vars:
+        #             replace[r] = l
+        #         elif l in free_vars:
+        #             replace[l] = r
+        #
+        # eqs = []
+        # eq_set = set()
+        # for con in equations:
+        #     eq = con[0]
+        #     eq = eq.replace(replace)
+        #     if eq.get_side("left") == eq.get_side("right"):
+        #         continue
+        #     if eq not in eq_set:
+        #         eqs.append([eq])
+        #         eq_set.add(eq)
+
+        prev = equations
+        next = _remove_id(prev, free_vars)
+        while prev != next:
+            prev = next
+            next = _remove_id(prev, free_vars)
+
+        return next
+
+
+    @staticmethod
+    def generate_identities(equations: Sequence[Sequence[StringEquation]], aut_constraints: AutConstraints, scq: StringConstraintQuery):
         eqs = []
-        eq_set = set()
         for con in equations:
+            assert(len(con) == 1)
             eq = con[0]
-            eq = eq.replace(replace)
-            if eq.get_side("left") == eq.get_side("right"):
-                continue
-            if eq not in eq_set:
-                eqs.append([eq])
-                eq_set.add(eq)
 
+            for con2 in equations:
+                eq2 = con2[0]
+                if eq == eq2:
+                    continue
+
+                if eq.get_side("left") == eq2.get_side("left") and eq.get_side("right")[0] == eq2.get_side("right")[0]:
+                    rem1 = eq.get_side("right")[1:]
+                    rem2 = eq2.get_side("right")[1:]
+                    if len(rem1) == len(rem2) and len(rem1) == 1:
+                        eqs.append([StringEquation(rem1, rem2)])
+
+                if eq.get_side("left") == eq2.get_side("left") and eq.get_side("right")[-1] == eq2.get_side("right")[-1]:
+                    rem1 = eq.get_side("right")[0:-1]
+                    rem2 = eq2.get_side("right")[0:-1]
+                    if len(rem1) == len(rem2) and len(rem1) == 1:
+                        eqs.append([StringEquation(rem1, rem2)])
+
+            eqs.append([eq])
         return eqs
 
 

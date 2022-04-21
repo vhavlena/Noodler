@@ -65,6 +65,9 @@ def main(args: argparse.Namespace):
 
         cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
         cnf = StringEqGraph.remove_extension(cnf, aut, scq)
+        cnf = StringEqGraph.generate_identities(cnf, aut, scq)
+        cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
+        cnf = StringEqGraph.remove_extension(cnf, aut, scq)
         graph = StringEqGraph.get_eqs_graph(cnf)
 
         sl = graph.straight_line()
