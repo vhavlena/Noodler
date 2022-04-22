@@ -30,6 +30,10 @@ import ast
 from collections import defaultdict
 
 
+class EmptyFileException(Exception):
+    pass
+
+
 def awalipy_ratexp_plus(re: RE):
     """
     A wrapper that mimics the + operater in awalipy
@@ -409,6 +413,9 @@ class SmtlibParser:
                 continue
 
             self.equations.append(self.parse_bool_expression(ref))
+
+        if len(self.equations) == 0:
+            raise EmptyFileException()
 
         constr = StringConstraint(ConstraintType.RE, self.constraints)
         and_eqs = StringConstraint.build_op(ConstraintType.AND, self.equations)

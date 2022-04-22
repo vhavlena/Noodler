@@ -9,7 +9,7 @@ from functools import reduce
 from git import Repo
 
 from noodler.core import is_straightline
-from noodler.parser import SmtlibParserHackAbc
+from noodler.parser import SmtlibParserHackAbc, EmptyFileException
 from noodler.noodler import StraightlineNoodleMachine, QueueNoodler
 from noodler.sequery import StringConstraintQuery, AutSingleSEQuery
 from noodler.graph_noodler import *
@@ -17,6 +17,12 @@ from noodler.graph_formula import StringEqGraph
 
 
 def print_result(sat, start, args):
+    if sat is None:
+        if args.csv:
+            end = time.time()
+            print("time: {0}".format(round(end-start, 2)))
+        return
+
     sat_str = "sat" if sat else "unsat"
     if args.csv:
         end = time.time()
@@ -91,6 +97,9 @@ def main(args: argparse.Namespace):
     except z3.z3types.Z3Exception:
         sys.stderr.write("Error during reading the file\n")
         exit(4)
+    except EmptyFileException:
+        print_result(None, start, args)
+        exit(0)
 
     gn: GraphNoodler = GraphNoodler(graph, aut)
     sett: GraphNoodlerSettings = GraphNoodlerSettings()
