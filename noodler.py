@@ -32,6 +32,23 @@ def print_result(sat, start, args):
         print(sat_str)
 
 
+def preprocess_conj(cnf, aut, scq):
+    cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
+    cnf = StringEqGraph.propagate_eps(cnf, aut, scq)
+    cnf, aut = StringEqGraph.reduce_common_sub(cnf, aut)
+
+    cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
+    cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
+    cnf, aut = StringEqGraph.reduce_common_sub(cnf, aut)
+
+    cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
+    cnf = StringEqGraph.remove_extension(cnf, aut, scq)
+    cnf = StringEqGraph.generate_identities(cnf, aut, scq)
+    cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
+    cnf = StringEqGraph.remove_extension(cnf, aut, scq)
+    return cnf, aut
+
+
 def main(args: argparse.Namespace):
     filename = args.filename
     bidi = args.bidi
@@ -61,19 +78,12 @@ def main(args: argparse.Namespace):
         is_disj: bool = reduce(lambda x,y: x or y, [len(l) > 1 for l in cnf], False)
 
         if not is_disj:
-            cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
-            cnf = StringEqGraph.propagate_eps(cnf, aut, scq)
-            cnf, aut = StringEqGraph.reduce_common_sub(cnf, aut)
+            cnf, aut = preprocess_conj(cnf, aut, scq)
 
-        cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
-        cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
-        cnf, aut = StringEqGraph.reduce_common_sub(cnf, aut)
+        if StringEqGraph.quick_unsat_check(cnf, aut):
+            print_result(False, start, args)
+            exit(0)
 
-        cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
-        cnf = StringEqGraph.remove_extension(cnf, aut, scq)
-        cnf = StringEqGraph.generate_identities(cnf, aut, scq)
-        cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
-        cnf = StringEqGraph.remove_extension(cnf, aut, scq)
         graph = StringEqGraph.get_eqs_graph(cnf)
 
         sl = graph.straight_line()

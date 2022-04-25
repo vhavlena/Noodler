@@ -309,6 +309,14 @@ class AutSingleSEQuery(SingleSEQuery):
         show_automata(self.constraints)
 
 
+    def unsat_check(self):
+
+        left = self.automaton_for_side("left")
+        right = self.automaton_for_side("right")
+        prod = awalipy.product(left, right).proper().trim()
+        return len(prod.useful_states()) == 0
+
+
 class RESingleSEQuery(SingleSEQuery):
     """
     String equation with regular expression constraints for variables.

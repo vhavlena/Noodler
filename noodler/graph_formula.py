@@ -616,20 +616,34 @@ class StringEqGraph:
                 if eq == eq2:
                     continue
 
+                rem1, rem2 = eq.get_side("right"), eq2.get_side("right")
                 if eq.get_side("left") == eq2.get_side("left") and eq.get_side("right")[0] == eq2.get_side("right")[0]:
-                    rem1 = eq.get_side("right")[1:]
-                    rem2 = eq2.get_side("right")[1:]
-                    if len(rem1) == len(rem2) and len(rem1) == 1:
-                        eqs.append([StringEquation(rem1, rem2)])
+                    rem1 = rem1[1:]
+                    rem2 = rem2[1:]
 
                 if eq.get_side("left") == eq2.get_side("left") and eq.get_side("right")[-1] == eq2.get_side("right")[-1]:
-                    rem1 = eq.get_side("right")[0:-1]
-                    rem2 = eq2.get_side("right")[0:-1]
-                    if len(rem1) == len(rem2) and len(rem1) == 1:
-                        eqs.append([StringEquation(rem1, rem2)])
+                    rem1 = rem1[0:-1]
+                    rem2 = rem2[0:-1]
+
+                if len(rem1) == 1 and len(rem2) == 1 and rem1 != eq.get_side("right"):
+                    eqs.append([StringEquation(rem1, rem2)])
 
             eqs.append([eq])
         return eqs
+
+
+    @staticmethod
+    def quick_unsat_check(equations: Sequence[Sequence[StringEquation]], aut_constraints: AutConstraints):
+        for con in equations:
+            unsat = True
+            for eq in con:
+                q = AutSingleSEQuery(eq, aut_constraints)
+                if not q.unsat_check():
+                    unsat = False
+                    break
+            if unsat:
+                return True
+        return False
 
 
 
@@ -651,13 +665,16 @@ class StringEqGraph:
             if _is_eps(v, aut_constraints[v]):
                 eps.add(v)
 
-        for con in equations:
-            assert(len(con) == 1)
-            eq = con[0]
-            if all(v in eps for v in eq.get_side("left")):
-                eps = eps | eq.get_vars_side("right")
-            if all(v in eps for v in eq.get_side("right")):
-                eps = eps | eq.get_vars_side("left")
+        eps_prev = set()
+        while eps_prev != eps:
+            eps_prev = eps
+            for con in equations:
+                assert(len(con) == 1)
+                eq = con[0]
+                if all(v in eps for v in eq.get_side("left")):
+                    eps = eps | eq.get_vars_side("right")
+                if all(v in eps for v in eq.get_side("right")):
+                    eps = eps | eq.get_vars_side("left")
 
         eqs = []
         for con in equations:
