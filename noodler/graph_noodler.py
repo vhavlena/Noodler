@@ -117,7 +117,7 @@ class GraphNoodler:
             #         continue
             #     cache[node.eq].append(query_str)
 
-            query_str = { k:get_shortest_strings_bfs(v) for k, v in query.items() }
+            #query_str = { k:get_shortest_strings_bfs(v) for k, v in query.items() }
             cur_query = AutSingleSEQuery(node.eq, query)
 
             # if sett.use_cache:
@@ -131,7 +131,6 @@ class GraphNoodler:
             #             cur_constraints.update(noodle.constraints)
             #             for s in node.succ:
             #                 Q.append((s, cur_constraints))
-
 
             noodler = SimpleNoodler(cur_query)
             noodles: Sequence[SingleSEQuery] = noodler.noodlify()

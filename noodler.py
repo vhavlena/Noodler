@@ -79,6 +79,8 @@ def main(args: argparse.Namespace):
 
         if not is_disj:
             cnf, aut = preprocess_conj(cnf, aut, scq)
+        else:
+            cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
 
         if StringEqGraph.quick_unsat_check(cnf, aut):
             print_result(False, start, args)

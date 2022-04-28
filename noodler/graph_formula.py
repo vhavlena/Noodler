@@ -362,12 +362,13 @@ class StringEqGraph:
                 if len(aut.states()) - 1 == len(aut.transitions()):
                     lit.add(var)
 
-            vars: dict[int, Set[str]] = dict()
-            for i in range(len(eqs)):
-                vars[i] = set().union(*[c.get_vars() for c in eqs[i]])
-                vars[i] = vars[i] - lit
-            for i in range(len(eqs)):
-                other_vars[i] = set().union(*[vars[l] for l in range(len(eqs)) if l != i])
+            vars: dict[StringEquation, Set[str]] = dict()
+            all_eq = [eq for t in eqs for eq in t]
+            for eq in all_eq:
+                vars[eq] = eq.get_vars() - lit #set().union(*[c.get_vars() for c in eqs[i]])
+                #vars[eq] = vars[eq] - lit
+            for eq in all_eq:
+                other_vars[eq] = set().union(*[vars[l] for l in all_eq if l != eq])
 
             return other_vars, lit
 
@@ -403,9 +404,9 @@ class StringEqGraph:
                 for eq in eqs[i]:
 
                     side1, side2 = "right", "left"
-                    if (len(other_vars[i] & eq.get_vars_side(side1)) == 0) and (len(eq.get_vars_side(side2) & eq.get_vars_side(side1)) == 0):
+                    if (len(other_vars[eq] & eq.get_vars_side(side1)) == 0) and (len(eq.get_vars_side(side2) & eq.get_vars_side(side1)) == 0):
                         _remove_unique_vars_side(eq, lit, side1, side2, modif[i])
-                    elif (len(other_vars[i] & eq.get_vars_side(side2)) == 0) and (len(eq.get_vars_side(side1) & eq.get_vars_side(side2)) == 0):
+                    elif (len(other_vars[eq] & eq.get_vars_side(side2)) == 0) and (len(eq.get_vars_side(side1) & eq.get_vars_side(side2)) == 0):
                         _remove_unique_vars_side(eq, lit, side2, side1, modif[i])
                     else:
                         modif[i].append(eq)
@@ -423,10 +424,10 @@ class StringEqGraph:
 
                 eq = eqs[i][0]
                 cond_left = lambda x: (x.get_side("left") == eq.get_side("left")) and len(x.get_side("left")) == 1 and\
-                    (not x.more_occur_side("right")) and len(other_vars[i] & x.get_vars_side("right")) == 0 and \
+                    (not x.more_occur_side("right")) and len(other_vars[x] & x.get_vars_side("right")) == 0 and \
                     len(x.get_vars_side("left") & x.get_vars_side("right")) == 0
                 cond_right = lambda x: x.get_side("right") == eq.get_side("right") and len(x.get_side("right")) == 1 and\
-                    (not x.more_occur_side("left")) and len(other_vars[i] & x.get_vars_side("left")) == 0 and \
+                    (not x.more_occur_side("left")) and len(other_vars[x] & x.get_vars_side("left")) == 0 and \
                     len(x.get_vars_side("left") & x.get_vars_side("right")) == 0
 
                 s1, s2 = None, None
@@ -444,9 +445,9 @@ class StringEqGraph:
                     q = AutSingleSEQuery(eq, aut_constraints)
 
                     if aut is None:
-                        aut = q.automaton_for_side(s2).proper().minimal_automaton().trim()
+                        aut = q.automaton_for_side(s2).minimal_automaton().trim()
                     else:
-                        aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().minimal_automaton().trim()
+                        aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().trim() #.minimal_automaton().trim()
                 prod = awalipy.product(aut, aut_constraints[var]).proper().trim()
                 if prod.num_states() != 0:
                     prod = prod.minimal_automaton().trim()
