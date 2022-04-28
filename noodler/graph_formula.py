@@ -378,7 +378,7 @@ class StringEqGraph:
             var_cnt += 1
             return "_reg_var{0}".format(var_cnt)
 
-        def _remove_unique_vars_side(eq, lit, side1, side2, modif):
+        def _remove_unique_vars_side(eq, lit, side1, side2, modif, check_sub):
             right = eq.get_vars_side(side1)
             q = AutSingleSEQuery(eq, aut_constraints)
             aut = q.automaton_for_side(side1)
@@ -389,9 +389,12 @@ class StringEqGraph:
             aut_constraints[new_var] = aut
             aut_side = q.automaton_for_side(side2)
 
-            comp = aut.proper().minimal_automaton().complement()
-            tmp = aut_side.product(comp).trim()
-            if len(tmp.useful_states()) != 0:
+            if check_sub:
+                comp = aut.proper().minimal_automaton().complement()
+                tmp = aut_side.product(comp).trim()
+                if len(tmp.useful_states()) != 0:
+                    modif.append(StringEquation(eq.get_side(side2), [new_var]))
+            else:
                 modif.append(StringEquation(eq.get_side(side2), [new_var]))
 
 
@@ -405,9 +408,9 @@ class StringEqGraph:
 
                     side1, side2 = "right", "left"
                     if (len(other_vars[eq] & eq.get_vars_side(side1)) == 0) and (len(eq.get_vars_side(side2) & eq.get_vars_side(side1)) == 0):
-                        _remove_unique_vars_side(eq, lit, side1, side2, modif[i])
+                        _remove_unique_vars_side(eq, lit, side1, side2, modif[i], len(eqs[i])==1)
                     elif (len(other_vars[eq] & eq.get_vars_side(side2)) == 0) and (len(eq.get_vars_side(side1) & eq.get_vars_side(side2)) == 0):
-                        _remove_unique_vars_side(eq, lit, side2, side1, modif[i])
+                        _remove_unique_vars_side(eq, lit, side2, side1, modif[i],len(eqs[i])==1)
                     else:
                         modif[i].append(eq)
             return modif
@@ -447,7 +450,7 @@ class StringEqGraph:
                     if aut is None:
                         aut = q.automaton_for_side(s2).minimal_automaton().trim()
                     else:
-                        aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().trim() #.minimal_automaton().trim()
+                        aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().minimal_automaton().trim()
                 prod = awalipy.product(aut, aut_constraints[var]).proper().trim()
                 if prod.num_states() != 0:
                     prod = prod.minimal_automaton().trim()
