@@ -109,6 +109,9 @@ def main(args: argparse.Namespace):
     except z3.z3types.Z3Exception:
         sys.stderr.write("Error during reading the file\n")
         exit(4)
+    except UnicodeEncodeError:
+        sys.stderr.write("Unsupported non-ASCII characters\n")
+        exit(4)
     except EmptyFileException:
         print_result(None, start, args)
         exit(0)
