@@ -16,14 +16,14 @@ from noodler.graph_noodler import *
 from noodler.graph_formula import StringEqGraph
 
 
-def print_result(sat, start, args):
+def print_result(sat:str, start, args):
     if sat is None:
         if args.csv:
             end = time.time()
             print("time: {0}".format(round(end-start, 2)))
         return
 
-    sat_str = "sat" if sat else "unsat"
+    sat_str = sat
     if args.csv:
         end = time.time()
         print("result: {0}".format(sat_str))
@@ -72,7 +72,7 @@ def main(args: argparse.Namespace):
         cnf, aut = scq.get_queries_cnf()
 
         if not StringEqGraph.check_length_compatible(cnf, aut):
-            print_result(False, start, args)
+            print_result("unsat", start, args)
             exit(0)
 
         is_disj: bool = reduce(lambda x,y: x or y, [len(l) > 1 for l in cnf], False)
@@ -83,7 +83,7 @@ def main(args: argparse.Namespace):
             cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
 
         if StringEqGraph.quick_unsat_check(cnf, aut):
-            print_result(False, start, args)
+            print_result("unsat", start, args)
             exit(0)
 
         graph = StringEqGraph.get_eqs_graph(cnf)
@@ -99,12 +99,12 @@ def main(args: argparse.Namespace):
                 sett: GraphNoodlerSettings = GraphNoodlerSettings(True, StrategyType.DFS, False, False, True)
                 sat = gn.is_sat(sett)
                 if sat:
-                    print_result(True, start, args)
+                    print_result("sat", start, args)
                     exit(0)
             graph = StringEqGraph.get_eqs_graph_ring(cnf)
 
     except NotImplementedError:
-        sys.stdout.write("unknown\n")
+        print_result("unknown", start, args)
         exit(0)
     except z3.z3types.Z3Exception:
         sys.stderr.write("Error during reading the file\n")
@@ -122,7 +122,8 @@ def main(args: argparse.Namespace):
     sett.use_retrieval = False
 
     sat = gn.is_sat(sett)
-    print_result(sat, start, args)
+    sat_str = "sat" if sat else "unsat"
+    print_result(sat_str, start, args)
 
 
 if __name__ == "__main__":

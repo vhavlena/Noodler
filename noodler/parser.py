@@ -414,10 +414,12 @@ class SmtlibParser:
 
             self.equations.append(self.parse_bool_expression(ref))
 
-        if len(self.equations) == 0:
+        if len(self.equations) == 0 and len(self.constraints) == 0:
             raise EmptyFileException()
 
         constr = StringConstraint(ConstraintType.RE, self.constraints)
+        if len(self.equations) == 0:
+            return constr
         and_eqs = StringConstraint.build_op(ConstraintType.AND, self.equations)
         return StringConstraint(ConstraintType.AND, and_eqs, constr)
 

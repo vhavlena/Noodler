@@ -448,12 +448,12 @@ class StringEqGraph:
                     q = AutSingleSEQuery(eq, aut_constraints)
 
                     if aut is None:
-                        aut = q.automaton_for_side(s2).minimal_automaton().trim()
+                        aut = q.automaton_for_side(s2).trim() #.minimal_automaton().trim()
                     else:
-                        aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().minimal_automaton().trim()
+                        aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().trim() #.minimal_automaton().trim()
                 prod = awalipy.product(aut, aut_constraints[var]).proper().trim()
                 if prod.num_states() != 0:
-                    prod = prod.minimal_automaton().trim()
+                    prod = prod.trim() #.minimal_automaton().trim()
                 aut_constraints[var] = prod
 
             return modif
@@ -665,9 +665,11 @@ class StringEqGraph:
 
         eps = set()
 
+        aut_eps = None
         for v in vars:
             if _is_eps(v, aut_constraints[v]):
                 eps.add(v)
+                aut_eps = aut_constraints[v]
 
         eps_prev = set()
         while eps_prev != eps:
@@ -687,6 +689,9 @@ class StringEqGraph:
             if eq.get_side("left") == eq.get_side("right"):
                 continue
             eqs.append([eq])
+
+        for var in eps:
+            aut_constraints[var] = awalipy.product(aut_constraints[var], aut_eps)
 
         return eqs
 
