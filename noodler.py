@@ -15,7 +15,6 @@ from noodler.sequery import StringConstraintQuery, AutSingleSEQuery
 from noodler.graph_noodler import *
 from noodler.graph_formula import StringEqGraph
 
-
 def print_result(sat:str, start, args):
     if sat is None:
         if args.csv:
@@ -32,13 +31,13 @@ def print_result(sat:str, start, args):
         print(sat_str)
 
 
-def preprocess_conj(cnf, aut, scq):
+def preprocess_conj(cnf, aut, scq, use_min):
     cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
     cnf = StringEqGraph.propagate_eps(cnf, aut, scq)
     cnf, aut = StringEqGraph.reduce_common_sub(cnf, aut)
 
-    cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
-    cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
+    cnf = StringEqGraph.reduce_regular_eqs(cnf, aut, use_min)
+    cnf = StringEqGraph.reduce_regular_eqs(cnf, aut, use_min)
     cnf, aut = StringEqGraph.reduce_common_sub(cnf, aut)
 
     cnf = StringEqGraph.propagate_variables(cnf, aut, scq)
@@ -78,9 +77,9 @@ def main(args: argparse.Namespace):
         is_disj: bool = reduce(lambda x,y: x or y, [len(l) > 1 for l in cnf], False)
 
         if not is_disj:
-            cnf, aut = preprocess_conj(cnf, aut, scq)
+            cnf, aut = preprocess_conj(cnf, aut, scq, args.min)
         else:
-            cnf = StringEqGraph.reduce_regular_eqs(cnf, aut)
+            cnf = StringEqGraph.reduce_regular_eqs(cnf, aut, args.min)
 
         if StringEqGraph.quick_unsat_check(cnf, aut):
             print_result("unsat", start, args)
@@ -140,6 +139,7 @@ if __name__ == "__main__":
     parser.add_argument("--version", action="store_true")
     parser.add_argument("filename", type=str, nargs="?")
     parser.add_argument("--csv", action="store_true")
+    parser.add_argument("--min", action="store_true")
 
     args = parser.parse_args()
     main(args)

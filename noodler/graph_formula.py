@@ -340,7 +340,7 @@ class StringEqGraph:
 
 
     @staticmethod
-    def reduce_regular_eqs(equations: Sequence[Sequence[StringEquation]], aut_constraints) -> Sequence[Sequence[StringEquation]]:
+    def reduce_regular_eqs(equations: Sequence[Sequence[StringEquation]], aut_constraints, minimize: bool) -> Sequence[Sequence[StringEquation]]:
         """!
         Remove nodes from CNF that can be reduced to a regular constraint.
         Implemented as a fixpoint evaluation.
@@ -448,12 +448,12 @@ class StringEqGraph:
                     q = AutSingleSEQuery(eq, aut_constraints)
 
                     if aut is None:
-                        aut = q.automaton_for_side(s2).trim() #.minimal_automaton().trim()
+                        aut = q.automaton_for_side(s2).trim() if not minimize else q.automaton_for_side(s2).proper().minimal_automaton().trim()
                     else:
-                        aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().trim() #.minimal_automaton().trim()
+                        aut = awalipy.sum(q.automaton_for_side(s2), aut).proper().trim() if not minimize else  awalipy.sum(q.automaton_for_side(s2), aut).proper().minimal_automaton().trim()
                 prod = awalipy.product(aut, aut_constraints[var]).proper().trim()
                 if prod.num_states() != 0:
-                    prod = prod.trim() #.minimal_automaton().trim()
+                    prod = prod.trim() if not minimize else prod.minimal_automaton().trim()
                 aut_constraints[var] = prod
 
             return modif
