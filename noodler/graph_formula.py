@@ -574,31 +574,6 @@ class StringEqGraph:
             if awalipy.are_equivalent(star, aut_constraints[v]):
                 free_vars.add(v)
 
-
-
-        # replace = dict()
-        # def_eqs = []
-        # for con in equations:
-        #     eq = copy.copy(con[0])
-        #     if len(eq.get_side("left")) == 1 and len(eq.get_side("right")) == 1:
-        #         l = eq.get_side("left")[0]
-        #         r = eq.get_side("right")[0]
-        #         if r in free_vars:
-        #             replace[r] = l
-        #         elif l in free_vars:
-        #             replace[l] = r
-        #
-        # eqs = []
-        # eq_set = set()
-        # for con in equations:
-        #     eq = con[0]
-        #     eq = eq.replace(replace)
-        #     if eq.get_side("left") == eq.get_side("right"):
-        #         continue
-        #     if eq not in eq_set:
-        #         eqs.append([eq])
-        #         eq_set.add(eq)
-
         prev = equations
         next = _remove_id(prev, free_vars)
         while prev != next:
