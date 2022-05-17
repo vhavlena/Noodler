@@ -339,6 +339,53 @@ class StringEqGraph:
 
 
 
+    def simplify_unique_light(equations: Sequence[Sequence[StringEquation]], aut_constraints, minimize: bool) -> Sequence[Sequence[StringEquation]]:
+
+        def get_vars_count(eqs):
+            vars_count =  defaultdict(lambda: 0)
+
+            for clause in eqs:
+                for eq in clause:
+                    for v in eq.get_vars():
+                        vars_count[v] += 1
+            return vars_count
+
+
+        def remove_eq(var, eq, side):
+            q = AutSingleSEQuery(eq, aut_constraints)
+            aut = q.automaton_for_side(side).trim() if not minimize else q.automaton_for_side(side).proper().minimal_automaton().trim()
+            prod = awalipy.product(aut, aut_constraints[var]).proper().trim()
+            if prod.num_states() != 0:
+                prod = prod.trim() if not minimize else prod.minimal_automaton().trim()
+            aut_constraints[var] = prod
+
+
+        vars_cnt = get_vars_count(equations)
+        rem = set()
+        a = None
+        while len(rem) != a:
+            a = len(rem)
+
+            modif = []
+            for clause in equations:
+                assert(len(clause) == 1)
+                eq = clause[0]
+
+                if len(eq.get_side("left")) == 1 and all(vars_cnt[x] == 1 for x in eq.get_vars_side("right")):
+                    remove_eq(eq.get_side("left")[0], eq, "right")
+                    rem.add(eq)
+                    for v in eq.get_vars():
+                        vars_cnt[v] -= 1
+                else:
+                    modif.append([eq])
+
+            equations = modif
+
+        return equations
+
+
+
+
     @staticmethod
     def reduce_regular_eqs(equations: Sequence[Sequence[StringEquation]], aut_constraints, minimize: bool) -> Sequence[Sequence[StringEquation]]:
         """!
