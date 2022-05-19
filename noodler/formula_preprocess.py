@@ -41,16 +41,22 @@ class EqNode:
     index: int
 
     def __eq__(self, other):
-        return self.eq == other.eq and self.index == other.index
+        return self.index == other.index
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __hash__(self):
-        return hash((self.eq, self.index))
+        return hash(self.index)
 
     def __str__(self):
-        return str(index) + ": " + str(self.eq)
+        return str(self.index) + ": " + str(self.eq)
 
     def __repr__(self):
         return str(self)
+
+    def is_simple_redundant(self) -> bool:
+        return self.eq.get_side("left") == self.eq.get_side("right")
 
 
 
@@ -70,9 +76,8 @@ class FormulaVarGraph:
         for clause in cnf_eqs:
             indices_cl = []
             for eq in clause:
-                left = list(map(lambda x: VarNode(x[1],i,-x[0]), enumerate(eq.get_side("left"))))
-                right = list(map(lambda x: VarNode(x[1],i,x[0]), enumerate(eq.get_side("right"))))
-                node = EqNode(eq, left, right, [], [], i)
+                left, right = self._create_node_sides(eq, i)
+                node = EqNode(eq, left, right, set(), set(), i)
                 self.vertices[i] = node
                 indices_cl.append(i)
                 i += 1
@@ -80,16 +85,28 @@ class FormulaVarGraph:
                     self.edges[varn.var].add(varn)
             indices_eq.append(indices_cl)
 
-        self.init = [self.vertices[i] for i in indices_eq[0]]
+        self.init = {self.vertices[i] for i in indices_eq[0]}
         for i in range(len(indices_eq) - 1):
-            succ = []
+            succ = set()
             for eq in indices_eq[i+1]:
-                succ.append(self.vertices[eq])
+                succ.add(self.vertices[eq])
             for eq in indices_eq[i]:
                 self.vertices[eq].succ = copy.copy(succ)
         for _, node in self.vertices.items():
             for sc in node.succ:
-                sc.prev.append(node)
+                sc.prev.add(node)
+
+
+    def _create_node_sides(self, eq: StringEquation, index:int) -> tuple[Sequence[EqNode], Sequence[EqNode]]:
+        """
+        Create left and right side of EqNode for a given equation and index
+        @param eq: Equation
+        @param index: Index of the equation
+        @return Initialized left, right
+        """
+        left = list(map(lambda x: VarNode(x[1],index,-x[0]), enumerate(eq.get_side("left"), 1)))
+        right = list(map(lambda x: VarNode(x[1],index,x[0]), enumerate(eq.get_side("right"), 1)))
+        return left, right
 
 
     def __str__(self) -> str:
@@ -108,10 +125,10 @@ class FormulaVarGraph:
             return ""
 
         ret = print_list_node(self.init) + "\n"
-        node = self.init[0]
+        node = list(self.init)[0]
         while len(node.succ) > 0:
             ret += print_list_node(node.succ) + "\n"
-            node = node.succ[0]
+            node = list(node.succ)[0]
 
         return ret
 
@@ -141,10 +158,16 @@ class FormulaVarGraph:
         for v in node.left + node.right:
             self.edges[v.var].remove(v)
         for pr in node.prev:
+            print(pr.succ, node, node in pr.succ)
             pr.succ.remove(node)
+            pr.succ = pr.succ | node.succ
+        for s in node.succ:
+            s.prev.remove(node)
+            s.prev = s.prev | node.prev
 
         if node in self.init:
             self.init.remove(node)
+            self.init = self.init.union(node.succ)
         del self.vertices[node.index]
 
 
@@ -161,10 +184,24 @@ class FormulaVarGraph:
             node = nodes.popleft()
             if node in visited:
                 continue
+            visited.add(node)
             if func(node):
                 ret.add(node)
             nodes.extend(node.succ)
         return ret
+
+
+    def map_equations(self, func: Callable):
+        """
+        Map equations in all nodes
+        @param func: Equation transformer
+        """
+        self.edges = defaultdict(lambda: set())
+        for _, node in self.vertices.items():
+            node.eq = func(node.eq)
+            node.left, node.right = self._create_node_sides(node.eq, node.index)
+            for varn in node.left + node.right:
+                self.edges[varn.var].add(varn)
 
 
     def get_side_dead_nodes(self) -> Set[EqNode]:
@@ -186,6 +223,14 @@ class FormulaVarGraph:
             len(node.eq.get_side("left")) == 1)
 
 
+    def get_simple_nodes(self) -> Set[EqNode]:
+        """
+        Get all simple nodes of the form X = Y
+        @return Set of simple nodes (X=Y)
+        """
+        return self.filter_nodes(lambda x: len(x.eq.get_side("left")) == 1 and len(x.eq.get_side("right")) == 1)
+
+
     def is_conjunction(self) -> bool:
         """
         Is the formula disjuction-free?
@@ -194,7 +239,7 @@ class FormulaVarGraph:
         while len(nodes) > 0:
             if len(nodes) > 1:
                 return False
-            nodes = nodes[0].succ
+            nodes = list(nodes)[0].succ
         return True
 
     def _get_edges(self) -> Dict[str, Set[VarNode]]:
@@ -219,15 +264,41 @@ class FormulaPreprocess(FormulaVarGraph):
 
 
     def __str__(self):
+        """
+        String representation
+        """
         return super().__str__()
 
     def __repr__(self):
+        """
+        String representation
+        """
         return str(self)
 
 
+    def get_eps_vars(self) -> Set[str]:
+        """
+        Get variables whose language contains only epsilon
+        @return Set of variables containig only epsilon
+        """
+        ret = set()
+        for v, aut in self.aut_constr.items():
+            aut = aut.proper().minimal_automaton().trim()
+            if len(aut.transitions()) == 0:
+                ret.add(v)
+        return ret
+
+
     def remove_eq(self, node: EqNode, minimize: bool):
+        """
+        Remove given node representing an equation
+        @param node: Node to be removed
+        @param minimize: Minimize the modified automaton
+        """
         super().remove_node(node)
 
+        if (not node.eq.get_side("left")) or (not node.eq.get_side("right")):
+            return
         side = "right" if len(node.eq.get_side("left")) == 1 else "left"
         var = node.eq.get_side(side_opposite(side))[0]
 
@@ -240,6 +311,10 @@ class FormulaPreprocess(FormulaVarGraph):
 
 
     def simplify_unique_light(self, minimize: bool = True):
+        """
+        Simplify equations having unique variables on a side.
+        @param minimize: Minimize the created automata
+        """
 
         assert(super().is_conjunction())
 
@@ -255,3 +330,78 @@ class FormulaPreprocess(FormulaVarGraph):
                 if len(super()._get_edges()[v]) == 1:
                     eq_ind = list(super()._get_edges()[v])[0].eq_index
                     nodes.append(super()._get_vertices()[eq_ind])
+
+
+    def propagate_variables(self, minimize: bool = True):
+        """
+        Propagate variables.
+        @param minimize: Minimize the created automata
+        """
+
+        assert(super().is_conjunction())
+
+        nodes = deque(super().get_simple_nodes())
+        print(nodes)
+        while len(nodes) > 0:
+            node = nodes.popleft()
+            if node.is_simple_redundant():
+                self.remove_eq(node, minimize)
+                continue
+
+            v_left = node.eq.get_side("left")[0]
+            replace = { v_left: node.eq.get_side("right")[0] }
+            print(": ", node)
+            self.remove_eq(node, minimize)
+            super().map_equations(lambda x: x.replace(replace))
+
+
+    def propagate_eps(self):
+        """
+        Propagate variables whose language contains only epsilon
+        @param minimize: Minimize the created automata
+        """
+
+        assert(super().is_conjunction())
+
+        eps = self.get_eps_vars()
+        visited = set()
+        vert = super()._get_vertices()
+
+        n_list = []
+        aut_eps = None
+        for v in eps:
+            n_list.extend([vert[n.eq_index] for n in super()._get_edges()[v]])
+            aut_eps = self.aut_constr[v] if aut_eps is None else aut_eps
+
+        nodes = deque(n_list)
+        while len(nodes) > 0:
+            node = nodes.popleft()
+            if node in visited:
+                continue
+
+            visited.add(node)
+            add_var = set()
+            if node.eq.get_vars_side("left") <= eps:
+                add_var = node.eq.get_vars_side("right") - eps
+            elif node.eq.get_vars_side("right") <= eps:
+                add_var = node.eq.get_vars_side("left") - eps
+
+            for v in add_var:
+                nodes.extend([vert[n.eq_index] for n in super()._get_edges()[v]])
+            eps = eps | add_var
+
+        for var in eps:
+            self.aut_constr[var] = awalipy.product(self.aut_constr[var], aut_eps)
+        super().map_equations(lambda x: x.remove(eps))
+        self.clean(True)
+
+
+    def clean(self, minimize: bool):
+        """
+        Remove trivial equations of the form [] = [] or [] = ...
+        @param minimize: Minimize the created automata
+        """
+        empty = super().filter_nodes(lambda x: (not x.eq.get_side("left")) or\
+            (not x.eq.get_side("right")))
+        for node in empty:
+            self.remove_eq(node, minimize)
