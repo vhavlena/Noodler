@@ -158,7 +158,6 @@ class FormulaVarGraph:
         for v in node.left + node.right:
             self.edges[v.var].remove(v)
         for pr in node.prev:
-            print(pr.succ, node, node in pr.succ)
             pr.succ.remove(node)
             pr.succ = pr.succ | node.succ
         for s in node.succ:
@@ -341,7 +340,6 @@ class FormulaPreprocess(FormulaVarGraph):
         assert(super().is_conjunction())
 
         nodes = deque(super().get_simple_nodes())
-        print(nodes)
         while len(nodes) > 0:
             node = nodes.popleft()
             if node.is_simple_redundant():
@@ -350,7 +348,6 @@ class FormulaPreprocess(FormulaVarGraph):
 
             v_left = node.eq.get_side("left")[0]
             replace = { v_left: node.eq.get_side("right")[0] }
-            print(": ", node)
             self.remove_eq(node, minimize)
             super().map_equations(lambda x: x.replace(replace))
 
