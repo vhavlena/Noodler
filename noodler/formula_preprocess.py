@@ -150,6 +150,20 @@ class FormulaVarGraph:
         return v_cnt
 
 
+    def update_eq(self, node: EqNode, eq: StringEquation):
+        """
+        Update equation of the given node
+        @param node: Node to be updated
+        @param eq: New equation
+        """
+        for v in node.left + node.right:
+            self.edges[v.var].remove(v)
+        node.left, node.right = self._create_node_sides(eq, node.index)
+        for varn in node.left + node.right:
+            self.edges[varn.var].add(varn)
+        node.eq = eq
+
+
     def remove_node(self, node: EqNode):
         """
         Remove node (equation) from the formula
@@ -203,15 +217,15 @@ class FormulaVarGraph:
                 self.edges[varn.var].add(varn)
 
 
-    def get_side_dead_nodes(self) -> Set[EqNode]:
+    def get_side_regular_nodes(self) -> Set[EqNode]:
         """
         Get nodes whose equation form is X = X_1 X_2 X_3 where each X_i occurs at most
         once in the formula and |X| = 1
         """
-        return self.filter_nodes(lambda x: self.is_node_side_dead(x))
+        return self.filter_nodes(lambda x: self.is_node_side_regular(x))
 
 
-    def is_node_side_dead(self, node: EqNode) -> bool:
+    def is_node_side_regular(self, node: EqNode) -> bool:
         """
         Is the given node of the form X = X_1 X_2 X_3 where each X_i occurs at most
         once in the formula
@@ -222,12 +236,62 @@ class FormulaVarGraph:
             len(node.eq.get_side("left")) == 1)
 
 
+    def _is_clause_regular_side(self, clause: Set[EqNode], lit: Set[str], side: str) -> bool:
+        """
+        Is the given clause of the form X = X_1 X_2 X_3 OR X = X_4 X_5 ... where each
+        X_i occurs at most once in the formula and X_i occurs in the side given by side
+        @param clause: Clause
+        @param lit: Set of literals
+        @param side: Side of the equation
+        """
+        lefts = { tuple(node.eq.get_side(side)) for node in clause }
+        if len(lefts) > 1 or len(list(lefts)[0]) != 1:
+            return False
+        if side == "left":
+            return all(self.is_seq_regular(cl.right, lit) for cl in clause)
+        return all(self.is_seq_regular(cl.left, lit) for cl in clause)
+
+
+    def is_clause_regular(self, clause: Set[EqNode], lit: Set[str]) -> bool:
+        """
+        Is the given clause of the form X = X_1 X_2 X_3 OR X = X_4 X_5 ... where each
+        X_i occurs at most once in the formula
+        @param clause: Clause
+        @param lit: Set of literals
+        """
+        return self._is_clause_regular_side(clause, lit, "left") or\
+            self._is_clause_regular_side(clause, lit, "right")
+
+
+    def is_seq_regular(self, seq: Sequence[VarNode], lit: Set[str]) -> bool:
+        """
+        Is the given sequence of the form X_1 X_2 X_3 where each X_i occurs at most
+        once in the formula (or it is a literal)
+        """
+        return all(len(self.edges[item.var]) <= 1 for item in seq if item.var not in lit)\
+            and len(seq) == len(set(seq))
+
+
     def get_simple_nodes(self) -> Set[EqNode]:
         """
         Get all simple nodes of the form X = Y
         @return Set of simple nodes (X=Y)
         """
         return self.filter_nodes(lambda x: len(x.eq.get_side("left")) == 1 and len(x.eq.get_side("right")) == 1)
+
+
+    def get_clause(self, node: EqNode) -> Set[EqNode]:
+        """
+        Get clause containing the given node
+        @param node: Node
+        @return Set of nodes representing a clause
+        """
+        clause = set()
+        if not node.prev:
+            return self.init
+        for pr in node.prev:
+            clause = clause | pr.succ
+        return clause
 
 
     def is_conjunction(self) -> bool:
@@ -253,6 +317,12 @@ class FormulaVarGraph:
         """
         return self.vertices
 
+    def _get_init(self) -> Set[EqNode]:
+        """
+        Get all initial nodes
+        """
+        return self.init
+
 
 
 class FormulaPreprocess(FormulaVarGraph):
@@ -260,6 +330,7 @@ class FormulaPreprocess(FormulaVarGraph):
     def __init__(self, cnf_eqs, aut_constr):
         super().__init__(cnf_eqs)
         self.aut_constr = aut_constr
+        self.var_cnt = 0
 
 
     def __str__(self):
@@ -288,17 +359,60 @@ class FormulaPreprocess(FormulaVarGraph):
         return ret
 
 
-    def remove_eq(self, node: EqNode, minimize: bool):
+    def get_literals(self) -> Set[str]:
+        """
+        Get literals
+        """
+        lit = set()
+        for var, aut in self.aut_constr.items():
+            aut = aut.trim()
+            if len(aut.states()) - 1 == len(aut.transitions()) and aut.num_initials() == 1:
+                lit.add(var)
+        return lit
+
+
+    def _get_new_var(self) -> str:
+        """
+        Create a fresh variable
+        """
+        self.var_cnt += 1
+        return "_reg_var{0}".format(self.var_cnt)
+
+
+    def remove_id(self, node: EqNode, minimize: bool):
+        """
+        Remove node containig identity X = Y
+        @param node: Node to be removed
+        """
+        assert(len(node.eq.get_side("left")) == 1 and len(node.eq.get_side("right")) == 1)
+
+        var1 = node.eq.get_side("left")[0]
+        var2 = node.eq.get_side("right")[0]
+
+        prod = awalipy.product(self.aut_constr[var1], self.aut_constr[var2]).proper().trim()
+        if prod.num_states() != 0:
+            prod = prod.trim() if not minimize else prod.minimal_automaton().trim()
+        self.aut_constr[var1] = prod
+        self.aut_constr[var2] = prod
+        super().remove_node(node)
+
+
+    def remove_eq(self, node: EqNode, lits: Set[str], minimize: bool):
         """
         Remove given node representing an equation
         @param node: Node to be removed
         @param minimize: Minimize the modified automaton
         """
-        super().remove_node(node)
 
-        if (not node.eq.get_side("left")) or (not node.eq.get_side("right")):
+        side = None
+        if len(node.eq.get_side("left")) == 1 and super().is_seq_regular(node.right, lits):
+            side = "right"
+        elif len(node.eq.get_side("right")) == 1 and super().is_seq_regular(node.left, lits):
+            side = "left"
+        else:
             return
-        side = "right" if len(node.eq.get_side("left")) == 1 else "left"
+
+        super().remove_node(node)
         var = node.eq.get_side(side_opposite(side))[0]
 
         q = AutSingleSEQuery(node.eq, self.aut_constr)
@@ -309,22 +423,53 @@ class FormulaPreprocess(FormulaVarGraph):
         self.aut_constr[var] = prod
 
 
-    def simplify_unique_light(self, minimize: bool = True):
+    def remove_clause(self, clause: Set[EqNode], lits: Set[str], minimize: bool):
+        """
+        Remove a given clause
+        @param clause: Clause containing nodes to be removed
+        @param lits: Literals
+        """
+        for node in list(clause):
+            self.remove_eq(node, lits, minimize)
+
+
+    def update_eq_regular_part(self, node: EqNode, new_var: str, remove_side: str, lits: Sequence[str]):
+        """
+        Update equation s.t. the regular side is replaced by a fresh variable.
+        @param node: Node
+        @param new_var: A fresh variable
+        @param remove_side: Which side should be removed (left/right)
+        @param lits: Set of literals
+        """
+        q = AutSingleSEQuery(node.eq, self.aut_constr)
+        aut = q.automaton_for_side(remove_side)
+        for v in node.eq.get_vars_side(remove_side) - lits:
+            self.aut_constr.pop(v, None)
+        self.aut_constr[new_var] = aut
+
+        super().update_eq(node, StringEquation([new_var], node.eq.get_side(side_opposite(remove_side))))
+
+
+    def simplify_unique(self, minimize: bool = True):
         """
         Simplify equations having unique variables on a side.
         @param minimize: Minimize the created automata
         """
 
-        assert(super().is_conjunction())
+        lits = self.get_literals()
 
-        nodes = deque(super().get_side_dead_nodes())
+        nodes = deque(super().get_side_regular_nodes())
         while len(nodes) > 0:
             node = nodes.popleft()
-            if not super().is_node_side_dead(node):
+            if not node.index in super()._get_vertices():
                 continue
 
-            vars = node.eq.get_vars()
-            self.remove_eq(node, minimize)
+            clause = super().get_clause(node)
+            if not super().is_clause_regular(clause, lits):
+                continue
+
+            vars = set().union(*[ node.eq.get_vars() for node in clause ])
+            self.remove_clause(clause, lits, minimize)
             for v in vars:
                 if len(super()._get_edges()[v]) == 1:
                     eq_ind = list(super()._get_edges()[v])[0].eq_index
@@ -343,12 +488,12 @@ class FormulaPreprocess(FormulaVarGraph):
         while len(nodes) > 0:
             node = nodes.popleft()
             if node.is_simple_redundant():
-                self.remove_eq(node, minimize)
+                self.remove_eq(node, node.eq.get_vars(), minimize)
                 continue
 
             v_left = node.eq.get_side("left")[0]
             replace = { v_left: node.eq.get_side("right")[0] }
-            self.remove_eq(node, minimize)
+            self.remove_id(node, minimize)
             super().map_equations(lambda x: x.replace(replace))
 
 
@@ -393,6 +538,30 @@ class FormulaPreprocess(FormulaVarGraph):
         self.clean(True)
 
 
+    def _replace_unique_side_fresh(self):
+        """
+        Replace equations with a regular side (all variables occurring at
+        most once in the formula) with a fresh variable.
+        """
+        lits = self.get_literals()
+
+        for _, node in super()._get_vertices().items():
+            if super().is_seq_regular(node.left, lits):
+                new_var = self._get_new_var()
+                self.update_eq_regular_part(node, new_var, "left", lits)
+            elif super().is_seq_regular(node.right, lits):
+                new_var = self._get_new_var()
+                self.update_eq_regular_part(node, new_var, "right", lits)
+
+
+    def reduce_regular_eqs(self):
+        """
+        Remove nodes that can be reduced to a regular constraint.
+        """
+        self._replace_unique_side_fresh()
+        self.simplify_unique()
+
+
     def clean(self, minimize: bool):
         """
         Remove trivial equations of the form [] = [] or [] = ...
@@ -401,4 +570,4 @@ class FormulaPreprocess(FormulaVarGraph):
         empty = super().filter_nodes(lambda x: (not x.eq.get_side("left")) or\
             (not x.eq.get_side("right")))
         for node in empty:
-            self.remove_eq(node, minimize)
+            super().remove_node(node)
