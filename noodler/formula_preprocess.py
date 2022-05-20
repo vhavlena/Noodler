@@ -327,10 +327,11 @@ class FormulaVarGraph:
 
 class FormulaPreprocess(FormulaVarGraph):
 
-    def __init__(self, cnf_eqs, aut_constr):
+    def __init__(self, cnf_eqs, aut_constr, minimize: bool):
         super().__init__(cnf_eqs)
         self.aut_constr = aut_constr
         self.var_cnt = 0
+        self.minimize = minimize
 
 
     def __str__(self):
@@ -379,7 +380,7 @@ class FormulaPreprocess(FormulaVarGraph):
         return "_reg_var{0}".format(self.var_cnt)
 
 
-    def remove_id(self, node: EqNode, minimize: bool):
+    def remove_id(self, node: EqNode):
         """
         Remove node containig identity X = Y
         @param node: Node to be removed
@@ -391,17 +392,16 @@ class FormulaPreprocess(FormulaVarGraph):
 
         prod = awalipy.product(self.aut_constr[var1], self.aut_constr[var2]).proper().trim()
         if prod.num_states() != 0:
-            prod = prod.trim() if not minimize else prod.minimal_automaton().trim()
+            prod = prod.trim() if not self.minimize else prod.minimal_automaton().trim()
         self.aut_constr[var1] = prod
         self.aut_constr[var2] = prod
         super().remove_node(node)
 
 
-    def remove_eq(self, node: EqNode, lits: Set[str], minimize: bool):
+    def remove_eq(self, node: EqNode, lits: Set[str]):
         """
         Remove given node representing an equation
         @param node: Node to be removed
-        @param minimize: Minimize the modified automaton
         """
 
         side = None
@@ -416,21 +416,21 @@ class FormulaPreprocess(FormulaVarGraph):
         var = node.eq.get_side(side_opposite(side))[0]
 
         q = AutSingleSEQuery(node.eq, self.aut_constr)
-        aut = q.automaton_for_side(side).trim() if not minimize else q.automaton_for_side(side).proper().minimal_automaton().trim()
+        aut = q.automaton_for_side(side).trim() if not self.minimize else q.automaton_for_side(side).proper().minimal_automaton().trim()
         prod = awalipy.product(aut, self.aut_constr[var]).proper().trim()
         if prod.num_states() != 0:
-            prod = prod.trim() if not minimize else prod.minimal_automaton().trim()
+            prod = prod.trim() if not self.minimize else prod.minimal_automaton().trim()
         self.aut_constr[var] = prod
 
 
-    def remove_clause(self, clause: Set[EqNode], lits: Set[str], minimize: bool):
+    def remove_clause(self, clause: Set[EqNode], lits: Set[str]):
         """
         Remove a given clause
         @param clause: Clause containing nodes to be removed
         @param lits: Literals
         """
         for node in list(clause):
-            self.remove_eq(node, lits, minimize)
+            self.remove_eq(node, lits)
 
 
     def update_eq_regular_part(self, node: EqNode, new_var: str, remove_side: str, lits: Sequence[str]):
@@ -450,10 +450,9 @@ class FormulaPreprocess(FormulaVarGraph):
         super().update_eq(node, StringEquation([new_var], node.eq.get_side(side_opposite(remove_side))))
 
 
-    def simplify_unique(self, minimize: bool = True):
+    def simplify_unique(self):
         """
         Simplify equations having unique variables on a side.
-        @param minimize: Minimize the created automata
         """
 
         lits = self.get_literals()
@@ -469,17 +468,16 @@ class FormulaPreprocess(FormulaVarGraph):
                 continue
 
             vars = set().union(*[ node.eq.get_vars() for node in clause ])
-            self.remove_clause(clause, lits, minimize)
+            self.remove_clause(clause, lits)
             for v in vars:
                 if len(super()._get_edges()[v]) == 1:
                     eq_ind = list(super()._get_edges()[v])[0].eq_index
                     nodes.append(super()._get_vertices()[eq_ind])
 
 
-    def propagate_variables(self, minimize: bool = True):
+    def propagate_variables(self):
         """
         Propagate variables.
-        @param minimize: Minimize the created automata
         """
 
         assert(super().is_conjunction())
@@ -488,19 +486,18 @@ class FormulaPreprocess(FormulaVarGraph):
         while len(nodes) > 0:
             node = nodes.popleft()
             if node.is_simple_redundant():
-                self.remove_eq(node, node.eq.get_vars(), minimize)
+                self.remove_eq(node, node.eq.get_vars())
                 continue
 
             v_left = node.eq.get_side("left")[0]
             replace = { v_left: node.eq.get_side("right")[0] }
-            self.remove_id(node, minimize)
+            self.remove_id(node)
             super().map_equations(lambda x: x.replace(replace))
 
 
     def propagate_eps(self):
         """
         Propagate variables whose language contains only epsilon
-        @param minimize: Minimize the created automata
         """
 
         assert(super().is_conjunction())
@@ -535,7 +532,7 @@ class FormulaPreprocess(FormulaVarGraph):
         for var in eps:
             self.aut_constr[var] = awalipy.product(self.aut_constr[var], aut_eps)
         super().map_equations(lambda x: x.remove(eps))
-        self.clean(True)
+        self.clean()
 
 
     def _replace_unique_side_fresh(self):
@@ -562,10 +559,9 @@ class FormulaPreprocess(FormulaVarGraph):
         self.simplify_unique()
 
 
-    def clean(self, minimize: bool):
+    def clean(self):
         """
         Remove trivial equations of the form [] = [] or [] = ...
-        @param minimize: Minimize the created automata
         """
         empty = super().filter_nodes(lambda x: (not x.eq.get_side("left")) or\
             (not x.eq.get_side("right")))
