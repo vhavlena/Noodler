@@ -294,6 +294,143 @@ class FormulaVarGraph:
         return clause
 
 
+    def get_variables_succ(self, lits: Set[str]) -> Dict[str, Set[str]]:
+        """
+        Get successors for each variable (except literals) occurring in every equation.
+        @param lits: Literals
+        @return Dictionary where a variable contains a set of variables that occur
+        in some equation right after the variable. We use empty string to denote
+        the variable is at the end of an equation.
+        """
+
+        ret = defaultdict(lambda: set())
+        for _, eq in self.vertices.items():
+            sides = [eq.eq.get_side("left"), eq.eq.get_side("right")]
+            for side in sides:
+                for i in range(len(side) - 1):
+                    if side[i] in lits:
+                        continue
+                    ret[side[i]].add(side[i+1])
+                ret[side[-1]].add("")
+        return ret
+
+
+    def get_minimal_unique_sublists(self, lits: Set[str]) -> Dict[tuple[str], int]:
+        """
+        Get minimal unique sublists occurring in the formula.
+        @param lits: Set of literals
+        @return Dictionary mapping each minimal sublist to the number of occurrences
+        """
+
+        var_succ = self.get_variables_succ(lits)
+        sublst = defaultdict(lambda: 0)
+        subset = set()
+        ret = defaultdict(lambda: 0)
+
+        for _, eq in self.vertices.items():
+            sub = []
+            for var in eq.eq.get_side("left") + eq.eq.get_side("right"):
+                if len(var_succ[var]) <= 1 and not "" in var_succ[var]:
+                    sub.append(var)
+                if len(sub) > 0 and (len(var_succ[var]) > 1 or "" in var_succ[var]):
+                    sub.append(var)
+                    sublst[tuple(sub)] += 1
+                    subset.add(frozenset(sub))
+                    sub = []
+
+        smallest = set()
+        for item in subset:
+            sm = { v for v in subset if v < item }
+            if not sm:
+                smallest.add(item)
+
+        for sl1, cnt1 in sublst.items():
+            if frozenset(sl1) not in smallest:
+                continue
+            ret[sl1] = cnt1
+            for sl2, cnt2 in sublst.items():
+                if sl1 == sl2:
+                    continue
+                if set(sl1) <= set(sl2):
+                    ret[sl1] += cnt2
+
+        return ret
+
+
+    def _replace_side(self, find: Sequence[str], replace: Sequence[str], side: Sequence[str]) -> Sequence[str]:
+        """
+        Replace subsequences in a given equation side.
+        @param find: Sequence to be found
+        @param replace: Replacement
+        @param side: Sequnce of variable representing an equation side.
+        """
+
+        ret = []
+        i = 0
+        while i < len(side):
+            if find[0] == side[i] and side[i:i+len(find)] == find:
+                ret += replace
+                i += len(find)
+            else:
+                ret.append(side[i])
+                i += 1
+
+        return ret
+
+
+    def _replace_eq(self, eq: StringEquation, replace: Dict[tuple[str], tuple[str]]) -> StringEquation:
+        """
+        Replace all subsequences in a given equation
+        @param eq: Equation
+        @param replace: Dictionary containing find -> replace
+        @return Modified equation
+        """
+
+        left, right = eq.get_side("left"), eq.get_side("right")
+        for k, v in replace.items():
+            left = self._replace_side(list(k), list(v), left)
+            right = self._replace_side(list(k), list(v), right)
+        return StringEquation(left, right)
+
+
+    def replace_eq_sublist(self, replace: Dict[tuple[str], tuple[str]]):
+        """
+        Replace all subsequences in all equations
+        @param replace: Dictionary containing find -> replace
+        """
+        self.map_equations(lambda x: self._replace_eq(x, replace))
+
+
+    def add_equation(self, index: int, eq: StringEquation, prev: EqNode) -> EqNode:
+        """
+        Add equation to the formula
+        @param index: Index of the new equation
+        @param eq: New equation
+        @param prev: Previous node (as a successor it will contain the new equation node)
+        @return New equation node
+        """
+
+        left, right = self._create_node_sides(eq, index)
+        node = EqNode(eq, left, right, set(), set([prev]), index)
+
+        for varn in node.left + node.right:
+            self.edges[varn.var].add(varn)
+        self.vertices[index] = node
+        return node
+
+
+    def get_last_node(self) -> Optional[EqNode]:
+        """
+        Get a node without successors (last node)
+        @return Last node or None
+        """
+        for _, node in self.vertices.items():
+            if len(node.succ) == 0:
+                return node
+        return None
+
+
+
     def is_conjunction(self) -> bool:
         """
         Is the formula disjuction-free?
@@ -557,6 +694,43 @@ class FormulaPreprocess(FormulaVarGraph):
         """
         self._replace_unique_side_fresh()
         self.simplify_unique()
+
+
+    def reduce_common_sub(self):
+        """
+        Find common parts of each equation and replace them with a fresh equation
+        replacing the common parts.
+        """
+
+        if len(super()._get_vertices()) == 0:
+            return
+
+        lits = self.get_literals()
+        sl = super().get_minimal_unique_sublists(lits)
+
+        replace = [ k for k, v in sl.items() if v >= 2]
+        replace_map = dict()
+        last = super().get_last_node()
+        index = max(super()._get_vertices().keys()) + 1
+
+        new_eqs = []
+        for i in range(len(replace)):
+            var = self._get_new_var()
+            replace_map[replace[i]] = tuple([var])
+            eq = StringEquation([var], list(replace[i]))
+            new_eqs.append(eq)
+
+        self.replace_eq_sublist(replace_map)
+
+        for eq in new_eqs:
+            last = super().add_equation(index, eq, last)
+            index += 1
+
+        for r, var in replace_map.items():
+            aut_query = AutSingleSEQuery(StringEquation(list(r), list(r)), self.aut_constr)
+            aut = aut_query.automaton_for_side("left")
+            self.aut_constr[var[0]] = aut
+
 
 
     def clean(self):
