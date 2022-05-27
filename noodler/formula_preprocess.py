@@ -222,7 +222,18 @@ class FormulaVarGraph:
         Get nodes whose equation form is X = X_1 X_2 X_3 where each X_i occurs at most
         once in the formula and |X| = 1
         """
-        return self.filter_nodes(lambda x: self.is_node_side_regular(x))
+        return self.filter_nodes(lambda x: self.is_node_side_regular(x) or self.is_node_regular_assignment(x))
+
+
+    def is_node_regular_assignment(self, node: EqNode) -> bool:
+        """
+        Is given node a regular assignment? Equation of the form X = Y1 Y2 ...
+        where X does not occur multiple time.
+        @param node: Node
+        @return Is node regular assignment?
+        """
+        return (len(node.left) == 1 and len(self.edges[node.left[0]]) <= 1) or\
+            (len(node.right) == 1 and len(self.edges[node.right[0]]) <= 1)
 
 
     def is_node_side_regular(self, node: EqNode) -> bool:
@@ -412,6 +423,7 @@ class FormulaVarGraph:
 
         left, right = self._create_node_sides(eq, index)
         node = EqNode(eq, left, right, set(), set([prev]), index)
+        prev.succ.add(node)
 
         for varn in node.left + node.right:
             self.edges[varn.var].add(varn)
@@ -542,12 +554,12 @@ class FormulaPreprocess(FormulaVarGraph):
         """
 
         side = None
-        if len(node.eq.get_side("left")) == 1 and super().is_seq_regular(node.right, lits):
+        if len(node.eq.get_side("left")) == 1:
             side = "right"
-        elif len(node.eq.get_side("right")) == 1 and super().is_seq_regular(node.left, lits):
+        elif len(node.eq.get_side("right")) == 1:
             side = "left"
         else:
-            return
+            raise Exception("Equation cannot be removed")
 
         super().remove_node(node)
         var = node.eq.get_side(side_opposite(side))[0]
@@ -558,6 +570,8 @@ class FormulaPreprocess(FormulaVarGraph):
         if prod.num_states() != 0:
             prod = prod.trim() if not self.minimize else prod.minimal_automaton().trim()
         self.aut_constr[var] = prod
+        if len(node.eq.get_side(side)) == 1:
+            self.aut_constr[node.eq.get_side(side)[0]] = prod
 
 
     def remove_clause(self, clause: Set[EqNode], lits: Set[str]):
@@ -587,6 +601,44 @@ class FormulaPreprocess(FormulaVarGraph):
         super().update_eq(node, StringEquation([new_var], node.eq.get_side(side_opposite(remove_side))))
 
 
+    def is_clause_subset_side(self, clause: Set[EqNode], side: str) -> bool:
+        """
+        Is clause of the form: X = R_1 OR X = R_2 OR ... where X does not occur
+        anywhere else and L(X) >= L(R_i) and X occurs on side side. In that case,
+        we can later remove this clause.
+        @param clause: Clause
+        @param side: Side of the equations in the clause
+        """
+        lefts = { tuple(node.eq.get_side(side)) for node in clause }
+
+        if len(lefts) > 1 or len(list(lefts)[0]) != 1:
+            return False
+        left_var = list(lefts)[0][0]
+
+        if len(super()._get_edges()[left_var]) != len(clause):
+            return False
+
+        aut_var = self.aut_constr[left_var].copy()
+        for node in clause:
+            q = AutSingleSEQuery(node.eq, self.aut_constr)
+            aut = q.automaton_for_side(side_opposite(side)).proper()
+            comp = aut_var.proper().minimal_automaton().complement()
+            tmp = aut.product(comp).trim()
+            if len(tmp.useful_states()) != 0:
+                return False
+        return True
+
+
+    def is_clause_subset(self, clause: Set[EqNode]) -> bool:
+        """
+        Is clause of the form: X = R_1 OR X = R_2 OR ... where X does not occur
+        anywhere else and L(X) >= L(R_i). In that case, we can later remove
+        this clause.
+        @param clause: Clause
+        """
+        return self.is_clause_subset_side(clause, "left") or self.is_clause_subset_side(clause, "right")
+
+
     def simplify_unique(self):
         """
         Simplify equations having unique variables on a side.
@@ -597,12 +649,14 @@ class FormulaPreprocess(FormulaVarGraph):
         nodes = deque(super().get_side_regular_nodes())
         while len(nodes) > 0:
             node = nodes.popleft()
+
             if not node.index in super()._get_vertices():
                 continue
 
             clause = super().get_clause(node)
             if not super().is_clause_regular(clause, lits):
-                continue
+                if not self.is_clause_subset(clause):
+                    continue
 
             vars = set().union(*[ node.eq.get_vars() for node in clause ])
             self.remove_clause(clause, lits)
@@ -630,6 +684,8 @@ class FormulaPreprocess(FormulaVarGraph):
             replace = { v_left: node.eq.get_side("right")[0] }
             self.remove_id(node)
             super().map_equations(lambda x: x.replace(replace))
+        self.remove_duplicates()
+
 
 
     def propagate_eps(self):
@@ -732,6 +788,106 @@ class FormulaPreprocess(FormulaVarGraph):
             self.aut_constr[var[0]] = aut
 
 
+    def generate_identities(self):
+        """
+        Generate identities s.t. if X = Y_1 B Y_2 AND X = Y_1 C Y_2 we can deduce B = C.
+        """
+
+        assert(super().is_conjunction())
+
+        add_eq = []
+        for _, eq1 in super()._get_vertices().items():
+            for _, eq2 in super()._get_vertices().items():
+                if eq1 == eq2:
+                    continue
+
+                rem1, rem2 = eq1.eq.get_side("right"), eq2.eq.get_side("right")
+                if eq1.eq.get_side("left") == eq2.eq.get_side("left") and eq1.eq.get_side("right")[0] == eq2.eq.get_side("right")[0]:
+                    rem1 = rem1[1:]
+                    rem2 = rem2[1:]
+
+                if eq1.eq.get_side("left") == eq2.eq.get_side("left") and eq1.eq.get_side("right")[-1] == eq2.eq.get_side("right")[-1]:
+                    rem1 = rem1[0:-1]
+                    rem2 = rem2[0:-1]
+
+                if len(rem1) == 1 and len(rem2) == 1 and rem1 != eq1.eq.get_side("right"):
+                    add_eq.append(StringEquation(rem1, rem2))
+
+        last = super().get_last_node()
+
+        if last is None:
+            return
+
+        index = max(super()._get_vertices().keys()) + 1
+        for eq in add_eq:
+            last = super().add_equation(index, eq, last)
+            index += 1
+
+
+    def remove_extension(self, scq: StringConstraintQuery):
+        """
+        Remove extensions from the formula. If X = Y_1 Y_2 and we know that
+        L(SigStar . Y_2) = L(SigStar) and Y_2 does not occur elsewhere, we can
+        remove Y_1 (Y_2 cen be expanded to cover Y_1).
+        @param scq: String constraint query (for sigma star automaton)
+        """
+
+        assert(super().is_conjunction())
+
+        occur = super().get_vars_count()
+        vars = super()._get_edges().keys()
+        begin_map = defaultdict(lambda: [])
+        end_map = defaultdict(lambda: [])
+        begin_star_vars = set()
+        end_star_vars = set()
+
+        for v in vars:
+            if len(super()._get_edges()[v]) == 0:
+                continue
+            star = scq.sigma_star_aut()
+            aut_v = self.aut_constr[v].copy()
+            sigma_star = star.concatenate(aut_v).proper().minimal_automaton().trim()
+            if awalipy.are_equivalent(sigma_star, aut_v):
+                begin_star_vars.add(v)
+            star = scq.sigma_star_aut()
+            star = aut_v.concatenate(star).proper().trim()
+            if awalipy.are_equivalent(sigma_star, aut_v):
+                end_star_vars.add(v)
+
+        for _,node in super()._get_vertices().items():
+            eq = node.eq
+            if len(eq.get_side("left")) == 1:
+                v = eq.get_side("left")[0]
+                r = eq.get_side("right")
+                if len(r) > 1 and r[1] in begin_star_vars and occur[r[1]] == 1:
+                    begin_map[r[0]].append(v)
+                if len(r) > 1 and r[-2] in end_star_vars and occur[r[-2]] == 1:
+                    end_map[r[-1]].append(v)
+
+        remove_beg = set()
+        remove_end = set()
+        for k, v in begin_map.items():
+            if occur[k] == len(v) and len(set(v)) == 1:
+                remove_beg.add((v[0], k))
+        for k, v in end_map.items():
+            if occur[k] == len(v) and len(set(v)) == 1:
+                remove_end.add((v[0], k))
+
+        for _,node in super()._get_vertices().items():
+            eq = copy.copy(node.eq)
+            for l, r in remove_beg:
+                if eq.get_side("left") == [l] and eq.get_side("right")[0] == r and len(eq.get_side("right")) > 1:
+                    eq = StringEquation(eq.get_side("left"), eq.get_side("right")[1:])
+                    break
+            for l, r in remove_end:
+                if eq.get_side("left") == [l] and eq.get_side("right")[-1] == r and len(eq.get_side("right")) > 1:
+                    eq = StringEquation(eq.get_side("left"), eq.get_side("right")[0:-1])
+                    break
+            if eq != node.eq:
+                super().update_eq(node, eq)
+
+
+
 
     def clean(self):
         """
@@ -740,4 +896,27 @@ class FormulaPreprocess(FormulaVarGraph):
         empty = super().filter_nodes(lambda x: (not x.eq.get_side("left")) or\
             (not x.eq.get_side("right")))
         for node in empty:
+            super().remove_node(node)
+
+
+    def remove_duplicates(self):
+        """
+        Remove duplicated equations.
+        """
+
+        nodes = deque(super()._get_init())
+        visited = set()
+        singletons = set()
+        remove = set()
+        while len(nodes) > 0:
+            node = nodes.popleft()
+            clause = super().get_clause(node)
+
+            if len(clause) == 1:
+                if node.eq in singletons:
+                    remove.add(node)
+                singletons.add(node.eq)
+            nodes.extend(node.succ)
+
+        for node in remove:
             super().remove_node(node)
