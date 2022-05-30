@@ -502,7 +502,10 @@ class FormulaPreprocess(FormulaVarGraph):
         @return Set of variables containig only epsilon
         """
         ret = set()
+
         for v, aut in self.aut_constr.items():
+            if aut.num_states() == 0:
+                continue
             aut = aut.proper().minimal_automaton().trim()
             if len(aut.transitions()) == 0:
                 ret.add(v)
@@ -515,6 +518,8 @@ class FormulaPreprocess(FormulaVarGraph):
         """
         lit = set()
         for var, aut in self.aut_constr.items():
+            if aut.num_states() == 0:
+                continue
             aut = aut.trim()
             if len(aut.states()) - 1 == len(aut.transitions()) and aut.num_initials() == 1:
                 lit.add(var)
@@ -685,7 +690,6 @@ class FormulaPreprocess(FormulaVarGraph):
             self.remove_id(node)
             super().map_equations(lambda x: x.replace(replace))
         self.remove_duplicates()
-
 
 
     def propagate_eps(self):
@@ -920,3 +924,32 @@ class FormulaPreprocess(FormulaVarGraph):
 
         for node in remove:
             super().remove_node(node)
+
+
+    def get_aut_constraint(self):
+        """
+        Get automata constraints
+        """
+        return self.aut_constr
+
+
+    def get_cnf(self) -> Sequence[Sequence[StringEquation]]:
+        """
+        Get formula back to cnf representation (each clause is a list).
+        """
+
+        def _get_eqs(nodes: Set[EqNode]) -> Sequence[StringEquation]:
+            return list(map(lambda x: x.eq, nodes))
+
+        cnf = []
+        inits = super()._get_init()
+
+        if len(inits) == 0:
+            return cnf
+
+        ret = cnf.append(_get_eqs(inits))
+        node = list(inits)[0]
+        while len(node.succ) > 0:
+            cnf.append(_get_eqs(node.succ))
+            node = list(node.succ)[0]
+        return cnf

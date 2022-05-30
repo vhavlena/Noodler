@@ -15,6 +15,8 @@ from noodler.sequery import StringConstraintQuery, AutSingleSEQuery
 from noodler.graph_noodler import *
 from noodler.graph_formula import StringEqGraph
 
+from noodler.formula_preprocess import *
+
 def print_result(sat:str, start, args):
     if sat is None:
         if args.csv:
@@ -48,6 +50,23 @@ def preprocess_conj(cnf, aut, scq, use_min):
     return cnf, aut
 
 
+def preprocess_conj_ref(cnf, aut, scq, use_min):
+    pr = FormulaPreprocess(cnf, aut, use_min)
+    pr.propagate_variables()
+    pr.propagate_eps()
+    pr.reduce_regular_eqs()
+    pr.reduce_common_sub()
+    pr.reduce_regular_eqs()
+    pr.reduce_common_sub()
+    pr.propagate_variables()
+    pr.remove_extension(scq)
+    pr.generate_identities()
+    pr.propagate_variables()
+    pr.remove_extension(scq)
+
+    return pr.get_cnf(), pr.get_aut_constraint()
+
+
 def main(args: argparse.Namespace):
     filename = args.filename
     bidi = args.bidi
@@ -77,9 +96,11 @@ def main(args: argparse.Namespace):
         is_disj: bool = reduce(lambda x,y: x or y, [len(l) > 1 for l in cnf], False)
 
         if not is_disj:
-            cnf, aut = preprocess_conj(cnf, aut, scq, args.min)
+            cnf, aut = preprocess_conj_ref(cnf, aut, scq, args.min)
         else:
-            cnf = StringEqGraph.reduce_regular_eqs(cnf, aut, args.min)
+            pr = FormulaPreprocess(cnf, aut, args.min)
+            pr.reduce_regular_eqs()
+            cnf, aut = pr.get_cnf(), pr.get_aut_constraint()
 
         if StringEqGraph.quick_unsat_check(cnf, aut):
             print_result("unsat", start, args)
