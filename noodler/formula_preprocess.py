@@ -570,7 +570,11 @@ class FormulaPreprocess(FormulaVarGraph):
         var = node.eq.get_side(side_opposite(side))[0]
 
         q = AutSingleSEQuery(node.eq, self.aut_constr)
-        aut = q.automaton_for_side(side).trim() if not self.minimize else q.automaton_for_side(side).proper().minimal_automaton().trim()
+        side_aut = q.automaton_for_side(side)
+        if side_aut.num_states() == 0:
+            aut = side_aut
+        else:
+            aut = q.automaton_for_side(side).trim() if not self.minimize else q.automaton_for_side(side).proper().minimal_automaton().trim()
         prod = awalipy.product(aut, self.aut_constr[var]).proper().trim()
         if prod.num_states() != 0:
             prod = prod.trim() if not self.minimize else prod.minimal_automaton().trim()
