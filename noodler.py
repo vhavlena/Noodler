@@ -62,6 +62,7 @@ def preprocess_conj_ref(pr, scq, use_min):
     pr.generate_identities()
     pr.propagate_variables()
     pr.remove_extension(scq)
+    pr.propagate_variables()
 
 
 def main(args: argparse.Namespace):
@@ -94,6 +95,7 @@ def main(args: argparse.Namespace):
 
         pr = FormulaPreprocess(cnf, aut, args.min)
         if not is_disj:
+            #cnf, aut = preprocess_conj(cnf, aut, scq, args.min)
             preprocess_conj_ref(pr, scq, args.min)
         else:
             pr.propagate_variables()

@@ -858,6 +858,11 @@ class FormulaPreprocess(FormulaVarGraph):
                 if eq1 == eq2:
                     continue
 
+                if eq1.eq.get_side("left") == eq2.eq.get_side("left") and len(eq1.eq.get_side("right")) == 1 and len(eq2.eq.get_side("right")) == 1:
+                    add_eq.append(StringEquation(eq1.eq.get_side("right"), eq2.eq.get_side("right")))
+                if eq1.eq.get_side("right") == eq2.eq.get_side("right") and len(eq1.eq.get_side("left")) == 1 and len(eq2.eq.get_side("left")) == 1:
+                    add_eq.append(StringEquation(eq1.eq.get_side("left"), eq2.eq.get_side("left")))
+
                 rem1, rem2 = eq1.eq.get_side("right"), eq2.eq.get_side("right")
                 if eq1.eq.get_side("left") == eq2.eq.get_side("left") and eq1.eq.get_side("right")[0] == eq2.eq.get_side("right")[0]:
                     rem1 = rem1[1:]
@@ -970,6 +975,9 @@ class FormulaPreprocess(FormulaVarGraph):
             if node in visited:
                 continue
             visited.add(node)
+
+            if node.eq.get_side("left") == node.eq.get_side("right"):
+                remove.add(node)
 
             clause = super().get_clause(node)
 
