@@ -117,7 +117,7 @@ class FormulaVarGraph:
             ret = ""
             add = ""
             for np in lst:
-                ret += str(np.eq) + add
+                ret += add + str(np.eq)
                 add = " OR "
             return ret
 
@@ -247,10 +247,23 @@ class FormulaVarGraph:
             len(node.eq.get_side("left")) == 1)
 
 
+    def is_clause_assignment(self, clause: Set[EqNode], side: str) -> bool:
+        """
+        Is the given clause of the form X = X_1 X_2 X_3 OR X = X_4 X_5 ...
+        and X occurs in the side given by side.
+        @param clause: Clause
+        @param side: Side of the equation
+        """
+        lefts = { tuple(node.eq.get_side(side)) for node in clause }
+        if len(lefts) > 1 or len(list(lefts)[0]) != 1:
+            return False
+        return True
+
+
     def _is_clause_regular_side(self, clause: Set[EqNode], lit: Set[str], side: str) -> bool:
         """
         Is the given clause of the form X = X_1 X_2 X_3 OR X = X_4 X_5 ... where each
-        X_i occurs at most once in the formula and X_i occurs in the side given by side
+        X_i occurs at most once in the formula and X occurs in the side given by side
         @param clause: Clause
         @param lit: Set of literals
         @param side: Side of the equation
@@ -558,39 +571,70 @@ class FormulaPreprocess(FormulaVarGraph):
         @param node: Node to be removed
         """
 
-        side = None
-        if len(node.eq.get_side("left")) == 1:
-            side = "right"
-        elif len(node.eq.get_side("right")) == 1:
-            side = "left"
-        else:
-            raise Exception("Equation cannot be removed")
-
-        super().remove_node(node)
-        var = node.eq.get_side(side_opposite(side))[0]
-
-        q = AutSingleSEQuery(node.eq, self.aut_constr)
-        side_aut = q.automaton_for_side(side)
-        if side_aut.num_states() == 0:
-            aut = side_aut
-        else:
-            aut = q.automaton_for_side(side).trim() if not self.minimize else q.automaton_for_side(side).proper().minimal_automaton().trim()
-        prod = awalipy.product(aut, self.aut_constr[var]).proper().trim()
-        if prod.num_states() != 0:
-            prod = prod.trim() if not self.minimize else prod.minimal_automaton().trim()
-        self.aut_constr[var] = prod
-        if len(node.eq.get_side(side)) == 1:
-            self.aut_constr[node.eq.get_side(side)[0]] = prod
+        self.remove_clause(set([node]), lits)
+        #return
+        #
+        # side = None
+        # if len(node.eq.get_side("left")) == 1:
+        #     side = "right"
+        # elif len(node.eq.get_side("right")) == 1:
+        #     side = "left"
+        # else:
+        #     raise Exception("Equation cannot be removed")
+        #
+        # super().remove_node(node)
+        # var = node.eq.get_side(side_opposite(side))[0]
+        #
+        # q = AutSingleSEQuery(node.eq, self.aut_constr)
+        # side_aut = q.automaton_for_side(side)
+        # if side_aut.num_states() == 0:
+        #     aut = side_aut
+        # else:
+        #     aut = q.automaton_for_side(side).trim() if not self.minimize else q.automaton_for_side(side).proper().minimal_automaton().trim()
+        # prod = awalipy.product(aut, self.aut_constr[var]).proper().trim()
+        # if prod.num_states() != 0:
+        #     prod = prod.trim() if not self.minimize else prod.minimal_automaton().trim()
+        # self.aut_constr[var] = prod
+        # if len(node.eq.get_side(side)) == 1:
+        #     self.aut_constr[node.eq.get_side(side)[0]] = prod
 
 
     def remove_clause(self, clause: Set[EqNode], lits: Set[str]):
         """
-        Remove a given clause
-        @param clause: Clause containing nodes to be removed
-        @param lits: Literals
+        Remove given node representing an equation
+        @param node: Node to be removed
         """
+
+        side = None
+        if self.is_clause_assignment(clause, "left"):  #len(node.eq.get_side("left")) == 1:
+            side = "right"
+        elif self.is_clause_assignment(clause, "right"):
+            side = "left"
+        else:
+            raise Exception("Clause cannot be removed")
+
+
+        var = list(clause)[0].eq.get_side(side_opposite(side))[0]
+        aut_union = None
         for node in list(clause):
-            self.remove_eq(node, lits)
+            super().remove_node(node)
+            q = AutSingleSEQuery(node.eq, self.aut_constr)
+            side_aut = q.automaton_for_side(side)
+            if side_aut.num_states() == 0:
+                aut = side_aut
+            else:
+                aut = q.automaton_for_side(side).trim() if not self.minimize else q.automaton_for_side(side).proper().minimal_automaton().trim()
+            if aut_union is None:
+                aut_union = aut
+            else:
+                aut_union = awalipy.sum(aut_union, aut).proper().trim()
+
+        prod = awalipy.product(aut_union, self.aut_constr[var]).proper().trim()
+        if prod.num_states() != 0:
+            prod = prod.trim() if not self.minimize else prod.minimal_automaton().trim()
+        self.aut_constr[var] = prod
+        if len(clause) == 1 and len(list(clause)[0].eq.get_side(side)) == 1:
+            self.aut_constr[list(clause)[0].eq.get_side(side)[0]] = prod
 
 
     def update_eq_regular_part(self, node: EqNode, new_var: str, remove_side: str, lits: Sequence[str]):
@@ -607,7 +651,10 @@ class FormulaPreprocess(FormulaVarGraph):
             self.aut_constr.pop(v, None)
         self.aut_constr[new_var] = aut
 
-        super().update_eq(node, StringEquation([new_var], node.eq.get_side(side_opposite(remove_side))))
+        if remove_side == "left":
+            super().update_eq(node, StringEquation([new_var], node.eq.get_side(side_opposite(remove_side))))
+        else:
+            super().update_eq(node, StringEquation(node.eq.get_side(side_opposite(remove_side)), [new_var]))
 
 
     def is_clause_subset_side(self, clause: Set[EqNode], side: str) -> bool:
@@ -680,11 +727,13 @@ class FormulaPreprocess(FormulaVarGraph):
         Propagate variables.
         """
 
-        assert(super().is_conjunction())
-
         nodes = deque(super().get_simple_nodes())
         while len(nodes) > 0:
             node = nodes.popleft()
+
+            if len(super().get_clause(node)) != 1:
+                continue
+
             if node.is_simple_redundant():
                 self.remove_eq(node, node.eq.get_vars())
                 continue
@@ -918,6 +967,10 @@ class FormulaPreprocess(FormulaVarGraph):
         remove = set()
         while len(nodes) > 0:
             node = nodes.popleft()
+            if node in visited:
+                continue
+            visited.add(node)
+
             clause = super().get_clause(node)
 
             if len(clause) == 1:

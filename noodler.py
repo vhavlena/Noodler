@@ -50,8 +50,7 @@ def preprocess_conj(cnf, aut, scq, use_min):
     return cnf, aut
 
 
-def preprocess_conj_ref(cnf, aut, scq, use_min):
-    pr = FormulaPreprocess(cnf, aut, use_min)
+def preprocess_conj_ref(pr, scq, use_min):
     pr.propagate_variables()
     pr.propagate_eps()
     pr.reduce_regular_eqs()
@@ -63,8 +62,6 @@ def preprocess_conj_ref(cnf, aut, scq, use_min):
     pr.generate_identities()
     pr.propagate_variables()
     pr.remove_extension(scq)
-
-    return pr.get_cnf(), pr.get_aut_constraint()
 
 
 def main(args: argparse.Namespace):
@@ -95,12 +92,14 @@ def main(args: argparse.Namespace):
 
         is_disj: bool = reduce(lambda x,y: x or y, [len(l) > 1 for l in cnf], False)
 
+        pr = FormulaPreprocess(cnf, aut, args.min)
         if not is_disj:
-            cnf, aut = preprocess_conj_ref(cnf, aut, scq, args.min)
+            preprocess_conj_ref(pr, scq, args.min)
         else:
-            pr = FormulaPreprocess(cnf, aut, args.min)
+            pr.propagate_variables()
             pr.reduce_regular_eqs()
-            cnf, aut = pr.get_cnf(), pr.get_aut_constraint()
+
+        cnf, aut = pr.get_cnf(), pr.get_aut_constraint()
 
         if StringEqGraph.quick_unsat_check(cnf, aut):
             print_result("unsat", start, args)
