@@ -619,11 +619,14 @@ class FormulaPreprocess(FormulaVarGraph):
         for node in list(clause):
             super().remove_node(node)
             q = AutSingleSEQuery(node.eq, self.aut_constr)
-            side_aut = q.automaton_for_side(side)
+            if self.minimize:
+                side_aut = q.automaton_for_side_minimal(side)
+            else:
+                side_aut = q.automaton_for_side(side)
             if side_aut.num_states() == 0:
                 aut = side_aut
             else:
-                aut = q.automaton_for_side(side).trim() if not self.minimize else q.automaton_for_side(side).proper().minimal_automaton().trim()
+                aut = q.automaton_for_side(side).trim() if not self.minimize else q.automaton_for_side_minimal(side).proper().minimal_automaton().trim()
             if aut_union is None:
                 aut_union = aut
             else:

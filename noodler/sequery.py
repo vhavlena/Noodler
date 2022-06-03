@@ -281,6 +281,17 @@ class AutSingleSEQuery(SingleSEQuery):
         return multiop(auts_l, lambda x,y: x.concatenate(y))
 
 
+    def automaton_for_side_minimal(self, side: str) -> Aut:
+        """!
+        Get an automaton for a given side (apply intermediate minimization).
+
+        @param side: Side (left, right)
+        @return Concatenation of automata for a given side
+        """
+        auts_l = self.automata_for_side(side)
+        return multiop(auts_l, lambda x,y: x.concatenate(y).proper().minimal_automaton())
+
+
     def is_balanced(self) -> bool:
         """
         Check if query is balanced.
