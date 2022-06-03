@@ -50,6 +50,16 @@ def preprocess_conj(cnf, aut, scq, use_min):
     return cnf, aut
 
 
+def preprocess_conj_light_ref(pr, scq, use_min):
+    pr.propagate_variables()
+    pr.propagate_eps()
+    pr.reduce_regular_eqs()
+    pr.reduce_common_sub()
+    pr.reduce_regular_eqs()
+    pr.generate_identities()
+    pr.propagate_variables()
+
+
 def preprocess_conj_ref(pr, scq, use_min):
     pr.propagate_variables()
     pr.propagate_eps()
@@ -96,7 +106,10 @@ def main(args: argparse.Namespace):
         pr = FormulaPreprocess(cnf, aut, args.min)
         if not is_disj:
             #cnf, aut = preprocess_conj(cnf, aut, scq, args.min)
-            preprocess_conj_ref(pr, scq, args.min)
+            if args.light:
+                preprocess_conj_light_ref(pr, scq, args.min)
+            else:
+                preprocess_conj_ref(pr, scq, args.min)
         else:
             pr.propagate_variables()
             pr.reduce_regular_eqs()
@@ -162,6 +175,7 @@ if __name__ == "__main__":
     parser.add_argument("filename", type=str, nargs="?")
     parser.add_argument("--csv", action="store_true")
     parser.add_argument("--min", action="store_true")
+    parser.add_argument("--light", action="store_true")
 
     args = parser.parse_args()
     main(args)

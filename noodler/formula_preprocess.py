@@ -85,7 +85,9 @@ class FormulaVarGraph:
                     self.edges[varn.var].add(varn)
             indices_eq.append(indices_cl)
 
-        self.init = {self.vertices[i] for i in indices_eq[0]}
+        self.init = set()
+        if len(indices_eq) > 0:
+            self.init = {self.vertices[i] for i in indices_eq[0]}
         for i in range(len(indices_eq) - 1):
             succ = set()
             for eq in indices_eq[i+1]:
