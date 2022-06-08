@@ -114,8 +114,8 @@ class GraphNoodler:
             cur_query = AutSingleSEQuery(node.eq, query)
             noodler = SimpleNoodler(cur_query)
             noodles: Sequence[SingleSEQuery] = noodler.noodlify()
-
-            for noodle in noodles:
+            
+            for noodle in reversed(noodles):
                 cur_constraints: AutConstraints = query.copy()
                 cur_constraints.update(noodle.constraints)
 
