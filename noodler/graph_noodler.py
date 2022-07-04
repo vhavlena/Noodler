@@ -2,7 +2,7 @@ import awalipy
 import itertools
 
 from collections import deque, defaultdict
-from typing import Sequence, Optional, List, Dict, Set
+from typing import Sequence, Optional, List, Dict, Set, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
@@ -33,12 +33,13 @@ class GraphNoodlerSettings:
 
 class GraphNoodler:
 
-    def __init__(self, vert: StringEqGraph, ini_constr: AutConstraints):
+    def __init__(self, vert: StringEqGraph, ini_constr: AutConstraints, lits: Set[str]):
         """!
         Create a new Graph noodler
         """
         self.aut_constr = ini_constr
         self.graph = vert
+        self.literals = lits
 
 
     def is_graph_stable(self, constr: AutConstraints, balance_check: bool, both_side: bool):
@@ -115,6 +116,13 @@ class GraphNoodler:
             noodler = SimpleNoodler(cur_query)
             noodles: Sequence[SingleSEQuery] = noodler.noodlify()
 
+            #print(node.eq, len(noodles))
+
+            distr, var = self._is_node_distributive(node.eq)
+            if distr and len(noodles) > 1:
+                noodles = [SingleSEQuery(node.eq, constr) for constr in self._distribute_noodles(noodles, query, var)]
+                #print(" -- ", node.eq, len(noodles))
+
             for noodle in noodles:
                 cur_constraints: AutConstraints = query.copy()
                 cur_constraints.update(noodle.constraints)
@@ -134,3 +142,51 @@ class GraphNoodler:
                     Q.append((s, cur_constraints))
 
         return False
+
+
+    def _distribute_noodles(self, noodles: Sequence[SingleSEQuery], query: AutConstraints, var: Optional[str]) -> Sequence[AutConstraints]:
+        """!
+        Distribute noodles. In the case a left side of the equation contains only
+        one variable (the others are literals), the noodles corresponding to the
+        variable are unified (automata union) to a single noodle.
+
+        @param noodles: Original noodles
+        @param query: Aut Constraint query of the current node
+        @param var: Unified variable
+        @return Sequence of AutConstraints
+        """
+
+        aut_union = None
+        if var is None:
+            return [query.copy()]
+        for noodle in noodles:
+            if aut_union is None:
+                aut_union = noodle.constraints[var]
+            else:
+                aut_union = awalipy.sum(aut_union, noodle.constraints[var]).proper().trim()
+        if aut_union is None:
+            return []
+
+        aut_union = aut_union.minimal_automaton().trim()
+        cur_constraints: AutConstraints = query.copy()
+        cur_constraints.update({var: aut_union})
+        return [cur_constraints]
+
+
+    def _is_node_distributive(self, eq: StringEquation) -> Tuple[bool, str]:
+        """!
+        Is a given equation distributive (=allows unification of noodles)?
+
+        @param eq: StringEquation of the current node
+        @return Pair: is node distributive, variable allowing unification
+            (None if it does not exist)
+        """
+
+        vars = eq.get_vars_side("left") - self.literals
+        if len(vars) > 1:
+            return False, None
+        if len(vars) == 0:
+            return True, None
+
+        var = list(vars)[0]
+        return eq.get_side("left").count(var) == 1, var

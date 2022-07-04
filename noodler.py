@@ -114,7 +114,9 @@ def main(args: argparse.Namespace):
             pr.propagate_variables()
             pr.reduce_regular_eqs()
 
+        literals = pr.get_literals()
         cnf, aut = pr.get_cnf(), pr.get_aut_constraint()
+        #print(literals)
 
         if StringEqGraph.quick_unsat_check(cnf, aut):
             print_result("unsat", start, args)
@@ -129,9 +131,9 @@ def main(args: argparse.Namespace):
             graph = StringEqGraph.get_eqs_graph_quick_sat(cnf)
             if graph is not None:
                 graph.linearize()
-                gn: GraphNoodler = GraphNoodler(graph, aut)
+                gn: GraphNoodler = GraphNoodler(graph, aut, literals)
                 sett: GraphNoodlerSettings = GraphNoodlerSettings(True, StrategyType.DFS, False, False, True)
-                sat = gn.is_sat(sett)
+                sat = gn.is_sat(sett, literals)
                 if sat:
                     print_result("sat", start, args)
                     exit(0)
@@ -150,7 +152,7 @@ def main(args: argparse.Namespace):
         print_result(None, start, args)
         exit(0)
 
-    gn: GraphNoodler = GraphNoodler(graph, aut)
+    gn: GraphNoodler = GraphNoodler(graph, aut, literals)
     sett: GraphNoodlerSettings = GraphNoodlerSettings()
     sett.balance_check = sl is None
     sett.strategy = StrategyType.BFS if sl is None else StrategyType.DFS
