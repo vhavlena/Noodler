@@ -541,6 +541,17 @@ class FormulaPreprocess(FormulaVarGraph):
         return lit
 
 
+    def get_unique_vars(self) -> Set[str]:
+        """
+        Get variables occurring uniquely in the formula.
+        """
+        uni = set()
+        for k, v in self.edges.items():
+            if len(v) == 1:
+                uni.add(k)
+        return uni
+
+
     def _get_new_var(self) -> str:
         """
         Create a fresh variable
@@ -574,31 +585,6 @@ class FormulaPreprocess(FormulaVarGraph):
         """
 
         self.remove_clause(set([node]), lits)
-        #return
-        #
-        # side = None
-        # if len(node.eq.get_side("left")) == 1:
-        #     side = "right"
-        # elif len(node.eq.get_side("right")) == 1:
-        #     side = "left"
-        # else:
-        #     raise Exception("Equation cannot be removed")
-        #
-        # super().remove_node(node)
-        # var = node.eq.get_side(side_opposite(side))[0]
-        #
-        # q = AutSingleSEQuery(node.eq, self.aut_constr)
-        # side_aut = q.automaton_for_side(side)
-        # if side_aut.num_states() == 0:
-        #     aut = side_aut
-        # else:
-        #     aut = q.automaton_for_side(side).trim() if not self.minimize else q.automaton_for_side(side).proper().minimal_automaton().trim()
-        # prod = awalipy.product(aut, self.aut_constr[var]).proper().trim()
-        # if prod.num_states() != 0:
-        #     prod = prod.trim() if not self.minimize else prod.minimal_automaton().trim()
-        # self.aut_constr[var] = prod
-        # if len(node.eq.get_side(side)) == 1:
-        #     self.aut_constr[node.eq.get_side(side)[0]] = prod
 
 
     def remove_clause(self, clause: Set[EqNode], lits: Set[str]):

@@ -33,13 +33,14 @@ class GraphNoodlerSettings:
 
 class GraphNoodler:
 
-    def __init__(self, vert: StringEqGraph, ini_constr: AutConstraints, lits: Set[str]):
+    def __init__(self, vert: StringEqGraph, ini_constr: AutConstraints, lits: Set[str], uni: Set[str]):
         """!
         Create a new Graph noodler
         """
         self.aut_constr = ini_constr
         self.graph = vert
         self.literals = lits
+        self.unique_vars = uni
 
 
     def is_graph_stable(self, constr: AutConstraints, balance_check: bool, both_side: bool):
@@ -116,12 +117,10 @@ class GraphNoodler:
             noodler = SimpleNoodler(cur_query)
             noodles: Sequence[SingleSEQuery] = noodler.noodlify()
 
-            #print(node.eq, len(noodles))
-
-            distr, var = self._is_node_distributive(node.eq)
-            if distr and len(noodles) > 1:
-                noodles = [SingleSEQuery(node.eq, constr) for constr in self._distribute_noodles(noodles, query, var)]
-                #print(" -- ", node.eq, len(noodles))
+            if len(noodles) > 1:
+                distr, var = self._is_node_distributive(node.eq)
+                if distr:
+                    noodles = [SingleSEQuery(node.eq, constr) for constr in self._distribute_noodles(noodles, query, var)]
 
             for noodle in noodles:
                 cur_constraints: AutConstraints = query.copy()
@@ -173,6 +172,25 @@ class GraphNoodler:
         return [cur_constraints]
 
 
+    def _check_node_vars(self, eq: StringEquation, vars_s: Set[str]) -> Tuple[bool, str]:
+        """!
+        Is a given equation distributive (=allows unification of noodles) wrt given set of variables?
+
+        @param eq: StringEquation of the current node
+        @param vars_s: Set of vars that should be ignored
+        @return Pair: is node distributive, variable allowing unification
+            (None if it does not exist)
+        """
+        vars = eq.get_vars_side("left") - vars_s
+        if len(vars) > 1:
+            return False, None
+        if len(vars) == 0:
+            return True, None
+
+        var = list(vars)[0]
+        return eq.get_side("left").count(var) == 1, var
+
+
     def _is_node_distributive(self, eq: StringEquation) -> Tuple[bool, str]:
         """!
         Is a given equation distributive (=allows unification of noodles)?
@@ -182,11 +200,12 @@ class GraphNoodler:
             (None if it does not exist)
         """
 
-        vars = eq.get_vars_side("left") - self.literals
-        if len(vars) > 1:
-            return False, None
-        if len(vars) == 0:
-            return True, None
+        distr1, var1 = self._check_node_vars(eq, self.literals)
+        distr2, var2 = self._check_node_vars(eq, self.unique_vars)
 
-        var = list(vars)[0]
-        return eq.get_side("left").count(var) == 1, var
+        if distr1:
+            return distr1, var1
+        elif distr2:
+            return distr2, var2
+        else:
+            return False, None
