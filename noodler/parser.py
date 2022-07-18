@@ -19,14 +19,14 @@ SmtlibParserHackAbc
 """
 
 import itertools
-from typing import Callable, Collection, Optional, Union
+from typing import Callable, Collection, Optional, Union, Dict
 
 from .core import StringEquation, REConstraints, RE, StringConstraint, ConstraintType
-from .sequery import MultiSEQuery, awalipy_allchar
+from .sequery import MultiSEQuery, mata_allchar
 
-import awalipy
+import mata
 import z3
-import ast
+import re
 from collections import defaultdict
 
 
@@ -34,65 +34,35 @@ class EmptyFileException(Exception):
     pass
 
 
-def awalipy_ratexp_plus(re: RE):
-    """
-    A wrapper that mimics the + operater in awalipy
+def mata_ratexp_plus(re: RE):
+    return "({0})+".format(re);
 
-    Parameters
-    ----------
-    re: RE
 
-    Returns
-    -------
-    RE
-        (re)+ = (re)(re)*
-    """
-    return awalipy.RatExp.mult(re, re.star())
+def mata_ratexp_star(re: RE):
+    return "({0})*".format(re);
+
+
+def mata_ratexp_concat(re1: RE, re2: RE):
+    return "{0}{1}".format(re1, re2);
+
+
+def mata_ratexp_union(re1: RE, re2: RE):
+    return "{0}|{1}".format(re1, re2);
+
 
 # Symbol used to represent characters not included in alphabet of Awali REs
 NONSPEC_SYMBOL = u"\x1A"
 
 
-def translate_for_awali(string):
-    # TODO \xff is in fact \xfffd in Z3.
-    if string == "":
-        return "\e"
-    if "\xfffd" in string:
-        string = string.replace("\xfffd", "\ufffd")
+def translate_for_mata(string):
+    return str(re.escape(string))
 
-    string = ast.parse("\""+string+"\"")
-    string = string.body[0].value.value
-    tokens = {
-        " ": "\x19",
-        "<": "\x18",
-        ">": "\x17",
-        "?": "\x16",
-        "\n": "\x15",
-        ")": "\x14",
-        "(": "\x13",
-        "{": "\x12",
-        "}": "\x11",
-        "*": "\x10",
-        ".": "\x1f",
-        "\\": "\x08",
-        "\'" : "\x07",
-        ";" : "\x06",
-        "," : "\x05",
-        "\t" : "\x1e",
-        "=" : "\x04",
-        "[" : "\x03",
-        "]" : "\x02",
-        "\r" : "\x1d",
-        "\ufffd": "\x01",
-    }
-    return string.translate(str.maketrans(tokens))
-
-OPERATORS_Z3_TO_AWALIPY = {
-    z3.Z3_OP_RE_PLUS : awalipy_ratexp_plus,
-    z3.Z3_OP_RE_STAR : awalipy.RatExp.star,
+OPERATORS_Z3_TO_MATA = {
+    z3.Z3_OP_RE_PLUS : mata_ratexp_plus,
+    z3.Z3_OP_RE_STAR : mata_ratexp_star,
     # Z3_OP_RE_OPTION : awalipy.RatExp.,
-    z3.Z3_OP_RE_CONCAT : awalipy.RatExp.mult,
-    z3.Z3_OP_RE_UNION : awalipy.RatExp.add,
+    z3.Z3_OP_RE_CONCAT : mata_ratexp_concat,
+    z3.Z3_OP_RE_UNION : mata_ratexp_union,
     # Z3_OP_RE_RANGE : awalipy.RatExp.,
     # Z3_OP_RE_LOOP : awalipy.RatExp.,
     # Z3_OP_RE_INTERSECT : awalipy.RatExp.,
@@ -216,7 +186,8 @@ class SmtlibParser:
         """
         self.alphabet.update(set(ref.as_string()))
 
-    def z3_re_to_awali(self, ref: z3.ReRef) -> RE:
+
+    def z3_re_to_mata(self, ref: z3.ReRef) -> RE:
         """
         Convert z3 regular expression(RE) to Awalipy RE.
 
@@ -235,11 +206,11 @@ class SmtlibParser:
         # Basic blocks (string constants)
         if z3_operator == z3.Z3_OP_SEQ_TO_RE:
             string = ref.children()[0].as_string()
-            return self.create_awali_re(string)
+            return self.create_mata_re(string)
 
         # Allchar
         if ref.decl().name() == 're.allchar':
-            return awalipy_allchar(alphabet)
+            return mata_allchar(alphabet)
 
         # Otherwise recursively convert children and glue them
         # together using appropriate operator
@@ -249,19 +220,20 @@ class SmtlibParser:
         # 3. apply awalipy operator and return
 
         # 1. get awalipy operator
-        if z3_operator not in OPERATORS_Z3_TO_AWALIPY:
+        if z3_operator not in OPERATORS_Z3_TO_MATA:
             name = ref.decl().name()
             raise NotImplementedError(f"Z3 operator {z3_operator} ({name}) is "
                                       f"not implemented yet!")
-        awalipy_op: Callable = OPERATORS_Z3_TO_AWALIPY[z3_operator]
+        mata_op: Callable = OPERATORS_Z3_TO_MATA[z3_operator]
 
         # 2. convert children
-        child_re = [self.z3_re_to_awali(child) for child in ref.children()]
+        child_re = [self.z3_re_to_mata(child) for child in ref.children()]
 
         # 3. apply awalipy operator
-        return awalipy_op(*child_re)
+        return mata_op(*child_re)
 
-    def create_awali_re(self, string):
+
+    def create_mata_re(self, string):
         """
         Create Awalipy RatExp recognizing `string`.
 
@@ -275,7 +247,8 @@ class SmtlibParser:
         RE
             Awalipy representation of RE string.
         """
-        return awalipy.RatExp(string, alphabet=self.alphabet_str)
+        return string
+        
 
     def parse_equation(self, ref: z3.BoolRef) -> StringConstraint:
         left, right = ref.children()
@@ -302,7 +275,7 @@ class SmtlibParser:
                 return [z3_ref.as_string()]
             elif is_string_constant(z3_ref):
                 const = z3_ref.as_string()
-                const_re: RE = self.create_awali_re(const)
+                const_re: RE = self.create_mata_re(const)
                 new_var = self.str_exp[const]  #self.fresh_variable()
                 aux_vars[new_var] = const_re
                 return [new_var]
@@ -340,7 +313,7 @@ class SmtlibParser:
         left, right = ref.children()
         assert is_string_variable(left) and left.as_string() in self.variables
 
-        return {left.as_string(): self.z3_re_to_awali(right)}
+        return {left.as_string(): self.z3_re_to_mata(right)}
 
     def process_assignment(self, ref: z3.BoolRef) -> StringConstraint:
         """
@@ -362,7 +335,7 @@ class SmtlibParser:
         """
         assert is_assignment(ref)
         var, const = (c.as_string() for c in ref.children())
-        const_re: RE = self.create_awali_re(const)
+        const_re: RE = self.create_mata_re(const)
 
         constr = { var: const_re }
         return StringConstraint(ConstraintType.RE, constr)
@@ -434,13 +407,13 @@ class SmtlibParserHackAbc(SmtlibParser):
 
     def __init__(self, filename: str):
         super(SmtlibParserHackAbc, self).__init__(filename)
-        #self.alphabet_str = translate_for_awali(self.alphabet_str)
+        self.alphabet_str = translate_for_mata(self.alphabet_str)
 
     def create_awali_re(self, string):
-        string = translate_for_awali(string)
+        string = translate_for_mata(string)
         return super().create_awali_re(string)
 
     def _extract_letters(self, ref: z3.SeqRef) -> None:
         orig_string = ref.as_string()
-        fixed_string = translate_for_awali(orig_string)
+        fixed_string = translate_for_mata(orig_string)
         self.alphabet.update(set(fixed_string))

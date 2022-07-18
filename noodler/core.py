@@ -28,12 +28,12 @@ from enum import Enum
 
 from .formula import StringEquation, StringConstraint, ConstraintType
 
-import awalipy
+import mata
 import itertools
 
-Aut = awalipy.Automaton
-SegAut: Type[awalipy.Automaton] = awalipy.Automaton
-RE = awalipy.RatExp
+Aut = mata.Nfa # awalipy.Automaton
+SegAut: Type[mata.Nfa] = mata.Nfa
+RE = str
 
 TransID = int
 
@@ -98,19 +98,20 @@ def create_automata_constraints(constraints: Constraints) -> AutConstraints:
         The automata representation of constraints
     """
     res = {}
+
     for var, const in constraints.items():
         if isinstance(const, Aut):
             res[var] = const
             continue
 
         if isinstance(const, str):
-            const = awalipy.RatExp(const)
+            const = mata.Nfa.from_regex(const)
 
-        if not isinstance(const, RE):
+        if not isinstance(const, Aut):
             raise TypeError("constraints must be a regular expression")
 
         # We use the Thompson's algorithm as the derivative-term-based one
         # often explodes with growing alphabet.
-        res[var] = awalipy.Automaton(const).proper().minimal_automaton().trim()
+        res[var] = const #awalipy.Automaton(const).proper().minimal_automaton().trim()
 
     return res

@@ -15,7 +15,7 @@ MultiSEQuery
 """
 from typing import Sequence, Dict, Collection, Optional
 
-import awalipy
+import mata
 import copy
 
 from .utils import show_automata
@@ -57,8 +57,7 @@ def compare_aut_constraints_str(a1, a2) -> bool:
             return False
     return True
 
-
-def awalipy_allchar(alphabet: str) -> RE:
+def mata_allchar(alphabet: str) -> RE:
     """
     Create awalipy RE for Σ given as a string of characters.
 
@@ -70,8 +69,10 @@ def awalipy_allchar(alphabet: str) -> RE:
     -------
     RE for a+b+c+...
     """
-    all_str = '+'.join(alphabet)
-    return awalipy.RatExp(all_str, alphabet=alphabet)
+    all_str = ''.join(alphabet)
+    return "[{0}]".format(all_str)
+    #return awalipy.RatExp(all_str, alphabet=alphabet)
+
 
 
 class SingleSEQuery:
@@ -324,8 +325,9 @@ class AutSingleSEQuery(SingleSEQuery):
 
         left = self.automaton_for_side("left")
         right = self.automaton_for_side("right")
-        prod = awalipy.product(left, right).proper().trim()
-        return len(prod.useful_states()) == 0
+        prod, _ = mata.Nfa.intersection(left, right) #.proper().trim()
+        res, _ = mata.is_lang_empty_word_counterexample(prod)
+        return res
 
 
 class RESingleSEQuery(SingleSEQuery):
@@ -352,7 +354,7 @@ class RESingleSEQuery(SingleSEQuery):
         constraints : dict (equation.vars → aut)
         """
         res = {
-            var: awalipy.RatExp(c) for var, c in constraints.items()
+            var: mata.Nfa.from_regex(c) for var, c in constraints.items()
         }
         super().__init__(equation, res)
 
@@ -472,15 +474,15 @@ class StringConstraintQuery:
         for c in cnstr:
             for k, v in c.items():
                 if k in res:
-                    res[k] = awalipy.product(v, res[k]).proper().minimal_automaton().trim()
+                    res[k], _ = mata.Nfa.intersection(v, res[k]) #.proper().minimal_automaton().trim()
                 else:
                     res[k] = v
         return res
 
 
     def sigma_star_aut(self):
-        sigma_star: RE = awalipy_allchar(self.alphabet).star()
-        return awalipy.Automaton(sigma_star).proper().minimal_automaton().trim()
+        sigma_star: RE = "{0}*".format(mata_allchar(self.alphabet))
+        return mata.Nfa.from_regex(sigma_star)
 
 
     def _gather_aut_constraints(self) -> AutConstraints:
@@ -488,9 +490,9 @@ class StringConstraintQuery:
         constr_dict = StringConstraintQuery._merge_constraints(constr)
         vars = self.constraint.get_vars()
 
-        sigma_star: RE = awalipy_allchar(self.alphabet).star()
+        sigma_star_aut = self.sigma_star_aut()
         for var in vars:
-            constr_dict.setdefault(var, awalipy.Automaton(sigma_star).proper().minimal_automaton().trim())
+            constr_dict.setdefault(var, sigma_star_aut)
         return constr_dict
 
 
@@ -514,8 +516,8 @@ class StringConstraintQuery:
             eqs = [c.left for c in c_and.gather_leafs(ConstraintType.EQ)]
             c_vars = c_and.get_vars()
 
-            sigma_star: RE = awalipy_allchar(self.alphabet).star()
+            sigma_star_aut = self.sigma_star_aut()
             for var in c_vars:
-                constr_dict.setdefault(var, awalipy.Automaton(sigma_star).proper().minimal_automaton().trim())
+                constr_dict.setdefault(var, sigma_star_aut)
             queries.append(MultiSEQuery(eqs, constr_dict))
         return queries
