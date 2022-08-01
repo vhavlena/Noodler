@@ -70,7 +70,7 @@ def get_shortest_strings_bfs(aut: Aut) -> Set[str]:
     for fin in trans.initial_states():
         short[fin] = (0, set([""]))
 
-    lifo = queue.LifoQueue()
+    lifo = queue.Queue()
     proc = set(trans.initial_states())
 
     for st in trans.initial_states():
@@ -98,6 +98,9 @@ def get_shortest_strings_bfs(aut: Aut) -> Set[str]:
             if orig_w != act_w:
                 short.update([(trans.dst_of(tr), (act_l, act_w))])
                 short[trans.dst_of(tr)] = act_l, act_w
+
+            if trans.dst_of(tr) not in proc:
+                proc.add(trans.dst_of(tr))
                 lifo.put(trans.dst_of(tr))
                
 
