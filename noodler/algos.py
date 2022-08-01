@@ -98,10 +98,8 @@ def get_shortest_strings_bfs(aut: Aut) -> Set[str]:
             if orig_w != act_w:
                 short.update([(trans.dst_of(tr), (act_l, act_w))])
                 short[trans.dst_of(tr)] = act_l, act_w
-
-            if trans.dst_of(tr) not in proc:
-                proc.add(trans.dst_of(tr))
                 lifo.put(trans.dst_of(tr))
+               
 
     assert(len(trans.final_states()) == 1)
     return short[trans.final_states()[0]][1]
