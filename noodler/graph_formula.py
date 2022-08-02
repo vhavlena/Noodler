@@ -148,6 +148,16 @@ class StringEqGraph:
         return StringEqGraph(vert, vert, [])
 
 
+    def union(self, other):
+        """
+        Union two graphs (in place)
+        @param other: Another graph
+        """
+        self.vertices = self.vertices + other.vertices
+        self.initials = self.initials + other.initials
+        self.finals = self.finals + other.finals
+
+
     def get_sccs(self) -> Sequence[Sequence[StringEqNode]]:
         """!
         Get SCCs of the graph
@@ -506,3 +516,43 @@ class StringEqGraph:
         s = z3.Solver()
         s.add(formula)
         return s.check() == z3.sat
+
+
+    @staticmethod
+    def get_conj_graphs_succ(equations: Sequence[Sequence[StringEquation]]) -> Sequence["StringEqGraph"]:
+        """!
+        Get a list of independent graphs (ring topology) (variables do not affecting each other).
+
+        @param equations: Sequence of string equations representing a conjunction of equations
+        @return String Equation Graph
+        """
+
+        nodes: Dict[StringEquation, StringEqNode] = dict()
+        all_nodes = []
+        eqs = []
+
+        for clause in equations:
+            cl = []
+            assert(len(clause) == 1)
+            for eq in clause:
+                cl.append(eq)
+            eqs += cl
+
+        nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
+        all_nodes = [ nodes[eq] for eq in eqs]
+
+        for eq in eqs:
+            for eq_dst in eqs:
+                if len(eq.get_vars() & eq_dst.get_vars()) != 0:
+                    nodes[eq].succ.append(nodes[eq_dst])
+                    nodes[eq_dst].succ.append(nodes[eq])
+
+        graph = StringEqGraph(all_nodes, list(nodes.values()), list(nodes.values()))
+        sccs = graph.get_sccs()
+        
+        ret = []
+        for scc in sccs:
+            cnf = [[node.eq] for node in scc]
+            ret.append(StringEqGraph.get_eqs_graph_ring(cnf))
+
+        return ret
