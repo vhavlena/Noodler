@@ -270,6 +270,22 @@ class AutSingleSEQuery(SingleSEQuery):
         # return len(tmp.useful_states()) == 0
 
 
+    def has_empty_product(self) -> bool:
+        """
+        Have the automata corresponding to each side empty language?
+        """
+        auts_l = self.automata_for_side("left")
+        auts_r = self.automata_for_side("right")
+
+        aut_l = multiop(auts_l, lambda x,y: x.concatenate(y))
+        aut_r = multiop(auts_r, lambda x,y: x.concatenate(y))
+
+        tmp_l = aut_l.proper()
+        tmp_r = aut_r.proper()
+
+        return len(awalipy.product(tmp_l, tmp_r).trim().final_states()) == 0
+
+
     def automaton_for_side(self, side: str) -> Aut:
         """!
         Get an automaton for a given side.

@@ -102,14 +102,18 @@ def main(args: argparse.Namespace):
             exit(0)
 
         is_disj: bool = reduce(lambda x,y: x or y, [len(l) > 1 for l in cnf], False)
+        is_single_eq: bool = len(cnf) == 1
 
         pr = FormulaPreprocess(cnf, aut, args.min)
         if not is_disj:
             #cnf, aut = preprocess_conj(cnf, aut, scq, args.min)
+            if is_single_eq:
+                pr.separate_eqs()
             if args.light:
                 preprocess_conj_light_ref(pr, scq, args.min)
             else:
                 preprocess_conj_ref(pr, scq, args.min)
+            
         else:
             pr.propagate_variables()
             pr.reduce_regular_eqs()
@@ -124,9 +128,12 @@ def main(args: argparse.Namespace):
 
         graph = StringEqGraph.get_eqs_graph(cnf)
 
+        graphs = [graph]
         sl = graph.straight_line()
         if sl is not None:
-            graph = sl
+            graphs = [sl]
+        elif not is_disj and is_single_eq:
+            graphs = StringEqGraph.get_conj_graphs_succ(cnf)
         elif not is_disj:
             graph = StringEqGraph.get_eqs_graph_quick_sat(cnf)
             if graph is not None:
@@ -137,13 +144,13 @@ def main(args: argparse.Namespace):
                 if sat:
                     print_result("sat", start, args)
                     exit(0)
-            graph = StringEqGraph.get_eqs_graph_ring(cnf)
+            graphs = [StringEqGraph.get_eqs_graph_ring(cnf)]
 
     except NotImplementedError:
         print_result("unknown", start, args)
         exit(0)
-    except z3.z3types.Z3Exception:
-        sys.stderr.write("Error during reading the file\n")
+    except z3.z3types.Z3Exception as e:
+        sys.stderr.write("Error during reading the file\n", e)
         exit(4)
     except UnicodeEncodeError:
         sys.stderr.write("Unsupported non-ASCII characters\n")
@@ -152,7 +159,6 @@ def main(args: argparse.Namespace):
         print_result(None, start, args)
         exit(0)
 
-    gn: GraphNoodler = GraphNoodler(graph, aut, literals, unique_vars)
     sett: GraphNoodlerSettings = GraphNoodlerSettings()
     sett.balance_check = sl is None
     sett.strategy = StrategyType.BFS if sl is None else StrategyType.DFS
@@ -160,10 +166,16 @@ def main(args: argparse.Namespace):
     sett.both_side = False
     sett.use_retrieval = False
 
-    sat = gn.is_sat(sett)
-    sat_str = "sat" if sat else "unsat"
-    print_result(sat_str, start, args)
+    for graph in graphs:
+        gn: GraphNoodler = GraphNoodler(graph, aut, literals, unique_vars)
 
+        sat = gn.is_sat(sett)
+        if sat:
+            continue
+        print_result("unsat", start, args)
+        exit(0)
+
+    print_result("sat", start, args)
 
 if __name__ == "__main__":
     description = """Solves SAT problem for string constraints."""

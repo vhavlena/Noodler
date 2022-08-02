@@ -126,6 +126,10 @@ class GraphNoodler:
                 cur_constraints: AutConstraints = query.copy()
                 cur_constraints.update(noodle.constraints)
 
+                tmp = AutSingleSEQuery(node.eq, cur_constraints)
+                if tmp.has_empty_product():
+                    continue
+
                 if (node.eq in fin_eq):
                     st, failed = self.is_graph_stable(cur_constraints, sett.balance_check, sett.both_side)
                     if st:
