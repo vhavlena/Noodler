@@ -139,12 +139,12 @@ def main(args: argparse.Namespace):
             if graph is not None:
                 graph.linearize()
                 gn: GraphNoodler = GraphNoodler(graph, aut, literals, unique_vars)
-                sett: GraphNoodlerSettings = GraphNoodlerSettings(True, StrategyType.DFS, False, False, True)
+                sett: GraphNoodlerSettings = GraphNoodlerSettings(True, StrategyType.DFS, False, False, True, False)
                 sat = gn.is_sat(sett)
                 if sat:
                     print_result("sat", start, args)
                     exit(0)
-            graphs = [StringEqGraph.get_eqs_graph_ring(cnf)]
+            graphs = StringEqGraph.get_conj_graphs_succ(cnf)
 
     except NotImplementedError:
         print_result("unknown", start, args)
@@ -165,6 +165,7 @@ def main(args: argparse.Namespace):
     sett.use_cache = False
     sett.both_side = False
     sett.use_retrieval = False
+    sett.prod_pruning = pr.contains_shared_eq()
 
     for graph in graphs:
         gn: GraphNoodler = GraphNoodler(graph, aut, literals, unique_vars)

@@ -1083,6 +1083,17 @@ class FormulaPreprocess(FormulaVarGraph):
         if prev_i < len(left) - 1:
             seps.add(StringEquation(left[prev_i:i+1], right[prev_j:j+1]))
         return seps
+
+
+    def contains_shared_eq(self) -> bool:
+        """
+        Contains the formula an equation with shared variables on the left and right side?
+        """
+
+        for _, v in super()._get_vertices().items():
+            if len(v.eq.get_vars_side("left") & v.eq.get_vars_side("right")) > 0:
+                return True
+        return False
         
 
 
