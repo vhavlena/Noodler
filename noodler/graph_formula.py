@@ -354,7 +354,7 @@ class StringEqGraph:
             unsat = True
             for eq in con:
                 q = AutSingleSEQuery(eq, aut_constraints)
-                if not q.unsat_check():
+                if not q.unsat_check() and not q.unsat_pattern():
                     unsat = False
                     break
             if unsat:

@@ -344,6 +344,23 @@ class AutSingleSEQuery(SingleSEQuery):
         return len(prod.useful_states()) == 0
 
 
+    def unsat_pattern(self):
+
+        left = self.eq.get_side("left")
+        right = self.eq.get_side("right")
+        if len(left) != len(right) or len(left) != 2:
+            return False
+        if left[0] == right[1]:
+            prod = awalipy.product(self.constraints[left[1]], self.constraints[right[0]]).proper().trim()
+            if len(prod.useful_states()) == 0:
+                return True
+        if left[1] == right[0]:
+            prod = awalipy.product(self.constraints[left[0]], self.constraints[right[1]]).proper().trim()
+            if len(prod.useful_states()) == 0:
+                return True
+        return False
+
+
 class RESingleSEQuery(SingleSEQuery):
     """
     String equation with regular expression constraints for variables.
