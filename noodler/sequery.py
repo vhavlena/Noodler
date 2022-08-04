@@ -69,8 +69,7 @@ def mata_allchar(alphabet: str) -> RE:
     -------
     RE for a+b+c+...
     """
-    all_str = ''.join(alphabet)
-    return "[{0}]".format(all_str)
+    return "[{0}]".format(alphabet)
     #return awalipy.RatExp(all_str, alphabet=alphabet)
 
 

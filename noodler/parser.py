@@ -47,7 +47,7 @@ def mata_ratexp_concat(re1: RE, re2: RE):
 
 
 def mata_ratexp_union(re1: RE, re2: RE):
-    return "{0}|{1}".format(re1, re2);
+    return "({0})|({1})".format(re1, re2);
 
 
 # Symbol used to represent characters not included in alphabet of Awali REs
@@ -402,16 +402,16 @@ class SmtlibParserHackAbc(SmtlibParser):
     Extend `SmtlibParser` with encoding of `<`,`>`, ` `, and
     other problematic characters using fresh ASCI symbols.
 
-    This is ensured mainly by calls to ``translate_for_awali``
+    This is ensured mainly by calls to ``translate_for_mata``
     """
 
     def __init__(self, filename: str):
         super(SmtlibParserHackAbc, self).__init__(filename)
         self.alphabet_str = translate_for_mata(self.alphabet_str)
 
-    def create_awali_re(self, string):
+    def create_mata_re(self, string):
         string = translate_for_mata(string)
-        return super().create_awali_re(string)
+        return super().create_mata_re(string)
 
     def _extract_letters(self, ref: z3.SeqRef) -> None:
         orig_string = ref.as_string()
