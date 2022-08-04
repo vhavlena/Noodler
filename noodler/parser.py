@@ -43,11 +43,11 @@ def mata_ratexp_star(re: RE):
 
 
 def mata_ratexp_concat(re1: RE, re2: RE):
-    return "{0}{1}".format(re1, re2);
+    return "(({0})({1}))".format(re1, re2);
 
 
 def mata_ratexp_union(re1: RE, re2: RE):
-    return "({0})|({1})".format(re1, re2);
+    return "(({0})|({1}))".format(re1, re2);
 
 
 # Symbol used to represent characters not included in alphabet of Awali REs
