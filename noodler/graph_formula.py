@@ -241,6 +241,17 @@ class StringEqGraph:
 
         return cp
 
+    
+    def is_acyclic(self) -> bool:
+        """
+        Is the graph acyclic?
+        """
+        sccs = self.get_sccs()
+        for scc in sccs:
+            if len(scc) > 1:
+                return False
+        return True  
+
 
     def to_graphwiz(self) -> str:
         """!
@@ -556,3 +567,46 @@ class StringEqGraph:
             ret.append(StringEqGraph.get_eqs_graph_ring(cnf))
 
         return ret
+
+
+    def get_inclusion_graph(equations: Sequence[Sequence[StringEquation]]):
+        """
+        Get inclusion graph of the conjunction of string constraints.
+        """
+
+        nodes: Dict[StringEquation, StringEqNode] = dict()
+        all_nodes = []
+        eqs = set()
+
+        for clause in equations:
+            cl = set()
+            assert(len(clause) == 1)
+            for eq in clause:
+                cl.add(eq)
+                cl.add(eq.switched)
+            eqs = eqs | cl
+
+        nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
+        all_nodes = [ nodes[eq] for eq in eqs]
+
+        for eq in eqs:
+            for eq_dst in eqs:
+                if eq.switched == eq_dst and len(eq.get_vars_side("left") & eq.get_vars_side("right")) == 0:
+                    continue
+
+                if len(eq.get_vars_side("left") & eq_dst.get_vars_side("right")) != 0:
+                    nodes[eq].succ.append(nodes[eq_dst])
+
+        graph = StringEqGraph(all_nodes, list(nodes.values()), list(nodes.values()))
+        
+        if graph.is_acyclic():
+            fins = { n.eq for n in all_nodes if len(n.succ) == 0}
+            reach = set()
+            for eq, node in nodes.items():
+                reach = reach | { e.eq for e in node.succ }
+            inis = { eq for eq in eqs if eq not in reach }
+
+            assert(len(inis) == 1)
+
+            graph = StringEqGraph(all_nodes, [nodes[eq] for eq in inis], [nodes[eq] for eq in fins])
+        return graph
