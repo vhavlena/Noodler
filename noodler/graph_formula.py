@@ -1,8 +1,9 @@
 
+from email.policy import default
 from typing import Dict, Type, Union, Sequence, Set, Optional
 from enum import Enum
 from dataclasses import dataclass
-from collections import defaultdict
+from collections import defaultdict, deque
 
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
@@ -588,25 +589,44 @@ class StringEqGraph:
 
         nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
         all_nodes = [ nodes[eq] for eq in eqs]
+        prev_eq = defaultdict(lambda: set())
 
         for eq in eqs:
             for eq_dst in eqs:
-                if eq.switched == eq_dst and len(eq.get_vars_side("left") & eq.get_vars_side("right")) == 0:
+                if eq.switched == eq_dst and (len(eq.get_vars_side("left") & eq.get_vars_side("right")) == 0 and not eq.more_occur_side("right")):
                     continue
 
                 if len(eq.get_vars_side("left") & eq_dst.get_vars_side("right")) != 0:
-                    nodes[eq].succ.append(nodes[eq_dst])
+                    nodes[eq_dst].succ.append(nodes[eq])
+                    prev_eq[eq].add(eq_dst)
 
-        graph = StringEqGraph(all_nodes, list(nodes.values()), list(nodes.values()))
         
-        if graph.is_acyclic():
-            fins = { n.eq for n in all_nodes if len(n.succ) == 0}
-            reach = set()
-            for eq, node in nodes.items():
-                reach = reach | { e.eq for e in node.succ }
-            inis = { eq for eq in eqs if eq not in reach }
+        graph = StringEqGraph(all_nodes, list(nodes.values()), list(nodes.values()))
+        if not graph.is_acyclic():
+            return StringEqGraph.get_eqs_graph_ring(equations)
 
-            assert(len(inis) == 1)
+        chain_free = []
+        empty = deque([eq for eq in eqs if len(nodes[eq].succ) == 0])
 
-            graph = StringEqGraph(all_nodes, [nodes[eq] for eq in inis], [nodes[eq] for eq in fins])
+        while len(empty) > 0:
+            eq = empty.popleft()
+
+            if eq.switched not in chain_free:
+                chain_free.append(eq)
+
+            for prev in prev_eq[eq]:
+                nodes[prev].succ.remove(nodes[eq])
+                if len(nodes[prev].succ) == 0:
+                    empty.append(prev)
+
+        rights = []
+        for eq in chain_free:
+            rights.extend(eq.get_side("right"))
+        assert(not StringEquation([], rights).more_occur_side("right"))
+
+        for i in range(len(chain_free) - 1):
+            nodes[chain_free[i]].succ = [nodes[chain_free[i+1]]]
+            nodes[chain_free[i]].eval_formula = StringConstraint(ConstraintType.EQ, chain_free[i+1])
+
+        graph = StringEqGraph([ nodes[eq] for eq in chain_free], [nodes[chain_free[0]]], [nodes[chain_free[-1]]])
         return graph
