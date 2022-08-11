@@ -587,6 +587,9 @@ class StringEqGraph:
                 cl.add(eq.switched)
             eqs = eqs | cl
 
+        if len(eqs) == 1:
+            return StringEqGraph([], [], [])
+
         nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
         all_nodes = [ nodes[eq] for eq in eqs]
         prev_eq = defaultdict(lambda: set())
