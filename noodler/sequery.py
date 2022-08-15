@@ -13,13 +13,13 @@ MultiSEQuery
     system (sequence) of equations with constraints for
     variables.
 """
-from typing import Sequence, Dict, Collection, Optional
+from typing import Sequence, Dict, Collection, Optional, Set
 
 import awalipy
 import copy
 
 from .utils import show_automata
-from .algos import chain_automata, multiop, get_shortest_strings, get_shortest_strings_bfs
+from .algos import chain_automata, multiop, get_shortest_strings, get_shortest_strings_bfs, get_word_cycles
 #types
 from .core import AutConstraints, Aut, Constraints, SegAut, RE
 # classes
@@ -344,20 +344,28 @@ class AutSingleSEQuery(SingleSEQuery):
         return len(prod.useful_states()) == 0
 
 
-    def unsat_pattern(self):
+    def get_word(self, var):
+        aut = self.constraints[var]
+        return list(aut.shortest(len(aut.useful_states())).keys())[0]
+
+
+    def unsat_pattern(self, literals: Set[str]):
 
         left = self.eq.get_side("left")
         right = self.eq.get_side("right")
         if len(left) != len(right) or len(left) != 2:
             return False
-        if left[0] == right[1]:
-            prod = awalipy.product(self.constraints[left[1]], self.constraints[right[0]]).proper().trim()
-            if len(prod.useful_states()) == 0:
+
+        if left[0] == right[1] and left[1] in literals and right[0] in literals:
+            word1 = self.get_word(left[1])
+            if not self.get_word(right[0]) in get_word_cycles(word1):
                 return True
-        if left[1] == right[0]:
-            prod = awalipy.product(self.constraints[left[0]], self.constraints[right[1]]).proper().trim()
-            if len(prod.useful_states()) == 0:
+
+        if left[1] == right[0] and left[0] in literals and right[1] in literals:
+            word1 = self.get_word(left[0])
+            if not self.get_word(right[1]) in get_word_cycles(word1):
                 return True
+
         return False
 
 

@@ -460,3 +460,10 @@ def single_final_init(aut: Aut) -> None:
                                        a)
             aut.unset_final(s)
         aut.set_final(final)
+
+
+def get_word_cycles(word: str) -> Set[str]:
+    ret = set()
+    for i in range(len(word)):
+        ret.add(word[i:]+word[0:i])
+    return ret

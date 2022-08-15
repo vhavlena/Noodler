@@ -361,12 +361,12 @@ class StringEqGraph:
 
 
     @staticmethod
-    def quick_unsat_check(equations: Sequence[Sequence[StringEquation]], aut_constraints: AutConstraints):
+    def quick_unsat_check(equations: Sequence[Sequence[StringEquation]], aut_constraints: AutConstraints, literals: Set[str]):
         for con in equations:
             unsat = True
             for eq in con:
                 q = AutSingleSEQuery(eq, aut_constraints)
-                if not q.unsat_check() and not q.unsat_pattern():
+                if not q.unsat_check() and not q.unsat_pattern(literals):
                     unsat = False
                     break
             if unsat:
