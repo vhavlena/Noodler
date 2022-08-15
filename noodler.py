@@ -122,7 +122,7 @@ def main(args: argparse.Namespace):
         unique_vars = pr.get_unique_vars()
         cnf, aut = pr.get_cnf(), pr.get_aut_constraint()
 
-        if StringEqGraph.quick_unsat_check(cnf, aut):
+        if StringEqGraph.quick_unsat_check(cnf, aut, literals):
             print_result("unsat", start, args)
             exit(0)
 
