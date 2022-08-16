@@ -520,7 +520,7 @@ class StringEqGraph:
                         vars[v] = len(aut.transitions())
                     else:
                         vars[v] = z3.Int(v)
-                f_or.append(z3.Sum([ vars[v] for v in eq.get_vars_side("left")]) == z3.Sum([ vars[v] for v in eq.get_vars_side("right")]) )
+                f_or.append(z3.Sum([ vars[v] for v in eq.get_side("left")]) == z3.Sum([ vars[v] for v in eq.get_side("right")]) )
             formula.append(z3.Or(f_or))
 
         formula += [v >= 0 for _,v in vars.items()]
