@@ -587,7 +587,7 @@ class StringEqGraph:
                 cl.add(eq.switched)
             eqs = eqs | cl
 
-        if len(eqs) == 1:
+        if len(eqs) == 0:
             return StringEqGraph([], [], [])
 
         nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
