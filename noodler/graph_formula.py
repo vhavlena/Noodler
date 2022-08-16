@@ -561,10 +561,12 @@ class StringEqGraph:
 
         graph = StringEqGraph(all_nodes, list(nodes.values()), list(nodes.values()))
         sccs = graph.get_sccs()
-        
+
         ret = []
         for scc in sccs:
             cnf = [[node.eq] for node in scc]
+            if len(cnf) == 0:
+                continue
             ret.append(StringEqGraph.get_eqs_graph_ring(cnf))
 
         return ret
