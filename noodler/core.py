@@ -112,6 +112,7 @@ def create_automata_constraints(constraints: Constraints) -> AutConstraints:
 
         # We use the Thompson's algorithm as the derivative-term-based one
         # often explodes with growing alphabet.
+        const.trim()
         res[var] = const #awalipy.Automaton(const).proper().minimal_automaton().trim()
 
     return res

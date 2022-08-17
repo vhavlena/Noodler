@@ -13,7 +13,7 @@ from .formula import StringConstraint, ConstraintType
 
 import itertools
 import copy
-import awalipy
+import mata
 import z3
 
 
@@ -519,10 +519,11 @@ class FormulaPreprocess(FormulaVarGraph):
         ret = set()
 
         for v, aut in self.aut_constr.items():
-            if aut.num_states() == 0:
+            if aut.get_num_of_states() == 0:
                 continue
-            aut = aut.proper().minimal_automaton().trim()
-            if len(aut.transitions()) == 0:
+            aut = mata.Nfa.minimize(aut)
+            aut.trim()
+            if aut.get_num_of_trans() == 0:
                 ret.add(v)
         return ret
 
@@ -533,10 +534,10 @@ class FormulaPreprocess(FormulaVarGraph):
         """
         lit = set()
         for var, aut in self.aut_constr.items():
-            if aut.num_states() == 0:
+            if aut.get_num_of_states() == 0:
                 continue
-            aut = aut.trim()
-            if len(aut.states()) - 1 == len(aut.transitions()) and aut.num_initials() == 1:
+            aut.trim()
+            if aut.get_num_of_states() - 1 == aut.get_num_of_trans() and len(aut.initial_states) == 1:
                 lit.add(var)
         return lit
 
@@ -570,9 +571,11 @@ class FormulaPreprocess(FormulaVarGraph):
         var1 = node.eq.get_side("left")[0]
         var2 = node.eq.get_side("right")[0]
 
-        prod = awalipy.product(self.aut_constr[var1], self.aut_constr[var2]).proper().trim()
+        prod, _ = mata.Nfa.intersection(self.aut_constr[var1], self.aut_constr[var2])
+        prod.trim()
         if prod.num_states() != 0:
-            prod = prod.trim() if not self.minimize else prod.minimal_automaton().trim()
+            prod = prod if not self.minimize else mata.Nfa.minimize(prod)
+            prod.trim()
         self.aut_constr[var1] = prod
         self.aut_constr[var2] = prod
         super().remove_node(node)
@@ -611,18 +614,22 @@ class FormulaPreprocess(FormulaVarGraph):
                 side_aut = q.automaton_for_side_minimal(side)
             else:
                 side_aut = q.automaton_for_side(side)
-            if side_aut.num_states() == 0:
+            if side_aut.get_num_of_states() == 0:
                 aut = side_aut
             else:
-                aut = q.automaton_for_side(side).trim() if not self.minimize else q.automaton_for_side_minimal(side).proper().minimal_automaton().trim()
+                aut = q.automaton_for_side(side) if not self.minimize else mata.Nfa.minimize(q.automaton_for_side_minimal(side))
+                aut.trim()
             if aut_union is None:
                 aut_union = aut
             else:
-                aut_union = awalipy.sum(aut_union, aut).proper().trim()
+                aut_union = mata.Nfa.union(aut_union, aut)
+                aut_union.trim()
 
-        prod = awalipy.product(aut_union, self.aut_constr[var]).proper().trim()
-        if prod.num_states() != 0:
-            prod = prod.trim() if not self.minimize else prod.minimal_automaton().trim()
+        prod = mata.Nfa.intersection(aut_union, self.aut_constr[var])
+        prod.trim()
+        if prod.get_num_of_states() != 0:
+            prod = prod if not self.minimize else mata.Nfa.minimize(prod)
+            prod.trim()
         self.aut_constr[var] = prod
         if len(clause) == 1 and len(list(clause)[0].eq.get_side(side)) == 1:
             self.aut_constr[list(clause)[0].eq.get_side(side)[0]] = prod
@@ -668,7 +675,7 @@ class FormulaPreprocess(FormulaVarGraph):
         aut_var = self.aut_constr[left_var].copy()
         for node in clause:
             q = AutSingleSEQuery(node.eq, self.aut_constr)
-            aut = q.automaton_for_side(side_opposite(side)).proper()
+            aut = q.automaton_for_side(side_opposite(side)).proper()  #TODO MATA INCLUSION
             comp = aut_var.proper().minimal_automaton().complement()
             tmp = aut.product(comp).trim()
             if len(tmp.useful_states()) != 0:
@@ -771,7 +778,7 @@ class FormulaPreprocess(FormulaVarGraph):
             eps = eps | add_var
 
         for var in eps:
-            self.aut_constr[var] = awalipy.product(self.aut_constr[var], aut_eps)
+            self.aut_constr[var] = mata.Nfa.intersection(self.aut_constr[var], aut_eps)
         super().map_equations(lambda x: x.remove(eps))
         self.clean()
 
@@ -899,12 +906,12 @@ class FormulaPreprocess(FormulaVarGraph):
                 continue
             star = scq.sigma_star_aut()
             aut_v = self.aut_constr[v].copy()
-            sigma_star = star.concatenate(aut_v).proper().minimal_automaton().trim()
-            if awalipy.are_equivalent(sigma_star, aut_v):
+            sigma_star = mata.Nfa.minimize(mata.Nfa.concatenate(star, aut_v)) 
+            if mata.Nfa.equivalence_check(sigma_star, aut_v, alphabet=None):
                 begin_star_vars.add(v)
             star = scq.sigma_star_aut()
-            star = aut_v.concatenate(star).proper().trim()
-            if awalipy.are_equivalent(sigma_star, aut_v):
+            star = mata.Nfa.concatenate(aut_v, star)
+            if mata.Nfa.equivalence_check(sigma_star, aut_v):
                 end_star_vars.add(v)
 
         for _,node in super()._get_vertices().items():

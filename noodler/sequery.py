@@ -19,7 +19,7 @@ import mata
 import copy
 
 from .utils import show_automata
-from .algos import chain_automata, multiop, get_shortest_strings, get_shortest_strings_bfs
+from .algos import chain_automata, multiop
 #types
 from .core import AutConstraints, Aut, Constraints, SegAut, RE
 # classes
@@ -40,7 +40,7 @@ def compare_aut_constraints(a1: AutConstraints, a2: AutConstraints) -> bool:
         return False
 
     for k1, v1 in a1.items():
-        if not awalipy.are_equivalent(v1, a2[k1]):
+        if not mata.equivalence_check(v1, a2[k1], alphabet=None):
             return False
     return True
 
@@ -157,10 +157,10 @@ class SingleSEQuery:
         Aut
             Represents the language of one side of equation.
         """
-        res = multiop(self.automata_for_side(side), lambda x,y: x.concatenate(y))
+        res = multiop(self.automata_for_side(side), lambda x,y: mata.Nfa.concatenate(x, y))
 
         if minimize:
-            return res.minimal_automaton()
+            return mata.Nfa.minimize(res)
 
         return res
 
@@ -226,17 +226,17 @@ class AutSingleSEQuery(SingleSEQuery):
         return automata
 
 
-    def is_solution(self) -> bool:
-        auts_l = self.automata_for_side("left")
-        auts_r = self.automata_for_side("right")
+    # def is_solution(self) -> bool:
+    #     auts_l = self.automata_for_side("left")
+    #     auts_r = self.automata_for_side("right")
 
-        s_l = [ get_shortest_strings_bfs(aut).pop() for aut in auts_l ]
-        s_r = [ get_shortest_strings_bfs(aut).pop() for aut in auts_r ]
+    #     s_l = [ get_shortest_strings_bfs(aut).pop() for aut in auts_l ]
+    #     s_r = [ get_shortest_strings_bfs(aut).pop() for aut in auts_r ]
 
-        ass = dict(zip(self.eq.get_side("left"), s_l))
-        ass.update(dict(zip(self.eq.get_side("right"), s_r)))
+    #     ass = dict(zip(self.eq.get_side("left"), s_l))
+    #     ass.update(dict(zip(self.eq.get_side("right"), s_r)))
 
-        return self.eq.is_solution(ass)
+    #     return self.eq.is_solution(ass)
 
 
     def is_sub_balanced(self) -> bool:
@@ -256,18 +256,12 @@ class AutSingleSEQuery(SingleSEQuery):
 
         tmp_l = aut_l.proper()
         tmp_r = aut_r.proper()
-        short = get_shortest_strings_bfs(tmp_l)
+        short = tmp_l.get_shortest_words()
 
         for w in short:
             if int(tmp_r.eval(w)) == 0:
                 return False
         return True
-
-
-        # comp = aut_r.minimal_automaton().complement()
-        # tmp = aut_l.product(comp).trim()
-        #
-        # return len(tmp.useful_states()) == 0
 
 
     def automaton_for_side(self, side: str) -> Aut:
@@ -289,7 +283,7 @@ class AutSingleSEQuery(SingleSEQuery):
         @return Concatenation of automata for a given side
         """
         auts_l = self.automata_for_side(side)
-        return multiop(auts_l, lambda x,y: x.concatenate(y).proper().minimal_automaton())
+        return multiop(auts_l, lambda x,y: mata.Nfa.minimize(mata.Nfa.concatenate(x, y)))
 
 
     def is_balanced(self) -> bool:
@@ -306,13 +300,14 @@ class AutSingleSEQuery(SingleSEQuery):
         auts_l = self.automata_for_side("left")
         auts_r = self.automata_for_side("right")
 
-        aut_l = multiop(auts_l, lambda x,y: x.concatenate(y))
-        aut_r = multiop(auts_r, lambda x,y: x.concatenate(y))
+        aut_l = multiop(auts_l, lambda x,y: mata.Nfa.concatenate(x,y))
+        aut_r = multiop(auts_r, lambda x,y: mata.Nfa.concatenate(x,y))
 
-        tmp_l = aut_l.proper().minimal_automaton()
-        tmp_r = aut_r.proper().minimal_automaton()
+        tmp_l = mata.Nfa.minimize(aut_l)
+        tmp_r = mata.Nfa.minimize(aut_r)
 
-        return get_shortest_strings_bfs(tmp_l) == get_shortest_strings_bfs(tmp_r)
+
+        return tmp_l.get_shortest_words() == tmp_r.get_shortest_words()
 
         #return awalipy.are_equivalent(aut_l, aut_r)
 

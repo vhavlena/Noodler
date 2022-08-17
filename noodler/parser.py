@@ -189,7 +189,7 @@ class SmtlibParser:
 
     def z3_re_to_mata(self, ref: z3.ReRef) -> RE:
         """
-        Convert z3 regular expression(RE) to Awalipy RE.
+        Convert z3 regular expression(RE) to mata RE.
 
         Parameters
         ----------
@@ -198,7 +198,7 @@ class SmtlibParser:
         Returns
         -------
         RE
-            Awalipy representation of ref
+            mata representation of ref
         """
         z3_operator = ref.decl().kind()
         alphabet = self.alphabet_str
@@ -215,11 +215,11 @@ class SmtlibParser:
         # Otherwise recursively convert children and glue them
         # together using appropriate operator
         #
-        # 1. dict z3.operator -> awalipy operator
+        # 1. dict z3.operator -> mata operator
         # 2. convert children
-        # 3. apply awalipy operator and return
+        # 3. apply mata operator and return
 
-        # 1. get awalipy operator
+        # 1. get mata operator
         if z3_operator not in OPERATORS_Z3_TO_MATA:
             name = ref.decl().name()
             raise NotImplementedError(f"Z3 operator {z3_operator} ({name}) is "
@@ -229,23 +229,23 @@ class SmtlibParser:
         # 2. convert children
         child_re = [self.z3_re_to_mata(child) for child in ref.children()]
 
-        # 3. apply awalipy operator
+        # 3. apply mata operator
         return mata_op(*child_re)
 
 
     def create_mata_re(self, string):
         """
-        Create Awalipy RatExp recognizing `string`.
+        Create mata RatExp recognizing `string`.
 
         Parameters
         ----------
         string: str
-            string term to be converted to Awali RE.
+            string term to be converted to mata RE.
 
         Returns
         -------
         RE
-            Awalipy representation of RE string.
+            mata representation of RE string.
         """
         return string
         

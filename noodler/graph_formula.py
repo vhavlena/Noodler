@@ -13,7 +13,6 @@ from .formula import StringConstraint, ConstraintType
 
 import itertools
 import copy
-import awalipy
 import z3
 
 
@@ -493,9 +492,10 @@ class StringEqGraph:
             f_or = []
             for eq in clause:
                 for v in eq.get_vars():
-                    aut = auts[v].trim()
-                    if len(aut.states()) - 1 == len(aut.transitions()):
-                        vars[v] = len(aut.transitions())
+                    aut = auts[v]
+                    aut.trim()
+                    if aut.get_num_of_states() - 1 == aut.get_num_of_trans():
+                        vars[v] = aut.get_num_of_trans()
                     else:
                         vars[v] = z3.Int(v)
                 f_or.append(z3.Sum([ vars[v] for v in eq.get_vars_side("left")]) == z3.Sum([ vars[v] for v in eq.get_vars_side("right")]) )

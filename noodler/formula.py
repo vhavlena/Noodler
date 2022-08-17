@@ -13,11 +13,11 @@ SingleSEQuery
 
 Types
 -----
-Aut : awalipy.Automaton
+Aut : mata.Nfa
     General type of automaton.
 AutConstraints : Dict[str, Aut]
     Automata as constraints for SE queries.
-SegAut : awalipy.Automaton
+SegAut : mata.Nfa
     Segment automaton.
 TransID : int
     ID of transition in automaton
