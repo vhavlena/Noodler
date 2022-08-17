@@ -19,7 +19,7 @@ SmtlibParserHackAbc
 """
 
 import itertools
-from typing import Callable, Collection, Optional, Union
+from typing import Callable, Collection, Optional, Union, Dict
 
 from .core import StringEquation, REConstraints, RE, StringConstraint, ConstraintType
 from .sequery import MultiSEQuery, awalipy_allchar
