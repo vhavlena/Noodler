@@ -598,7 +598,7 @@ class StringEqGraph:
 
         for eq in eqs:
             for eq_dst in eqs:
-                if eq.switched == eq_dst and (len(eq.get_vars_side("left") & eq.get_vars_side("right")) == 0 and not eq.more_occur_side("right")):
+                if eq.switched == eq_dst and (len(eq.get_vars_side("left") & eq.get_vars_side("right")) == 0 and not eq_dst.more_occur_side("right")):
                     continue
 
                 if len(eq.get_vars_side("left") & eq_dst.get_vars_side("right")) != 0:
