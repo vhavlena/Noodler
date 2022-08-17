@@ -126,17 +126,17 @@ def main(args: argparse.Namespace):
             print_result("unsat", start, args)
             exit(0)
 
-        if not is_disj:
-            graph = StringEqGraph.get_inclusion_graph(cnf)
-        else:
-            graph = StringEqGraph.get_eqs_graph(cnf)
-
+        graph = StringEqGraph.get_eqs_graph(cnf)
         graphs = [graph]
         sl = graph.straight_line()
         if sl is not None:
             graphs = [sl]
+
+        if not is_disj:
+            graph = StringEqGraph.get_inclusion_graph(cnf)
         if graph.is_acyclic():
             sl = True
+            graphs = [graph]
         elif not is_disj and is_single_eq:
             graphs = StringEqGraph.get_conj_graphs_succ(cnf)
         elif not is_disj:
