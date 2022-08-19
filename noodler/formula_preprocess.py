@@ -573,7 +573,7 @@ class FormulaPreprocess(FormulaVarGraph):
 
         prod, _ = mata.Nfa.intersection(self.aut_constr[var1], self.aut_constr[var2])
         prod.trim()
-        if prod.num_states() != 0:
+        if prod.get_num_of_states() != 0:
             prod = prod if not self.minimize else mata.Nfa.minimize(prod)
             prod.trim()
         self.aut_constr[var1] = prod
@@ -625,7 +625,7 @@ class FormulaPreprocess(FormulaVarGraph):
                 aut_union = mata.Nfa.union(aut_union, aut)
                 aut_union.trim()
 
-        prod = mata.Nfa.intersection(aut_union, self.aut_constr[var])
+        prod, _ = mata.Nfa.intersection(aut_union, self.aut_constr[var])
         prod.trim()
         if prod.get_num_of_states() != 0:
             prod = prod if not self.minimize else mata.Nfa.minimize(prod)
@@ -672,14 +672,18 @@ class FormulaPreprocess(FormulaVarGraph):
         if len(super()._get_edges()[left_var]) != len(clause):
             return False
 
-        aut_var = self.aut_constr[left_var].copy()
+        aut_var = self.aut_constr[left_var]
         for node in clause:
             q = AutSingleSEQuery(node.eq, self.aut_constr)
-            aut = q.automaton_for_side(side_opposite(side)).proper()  #TODO MATA INCLUSION
-            comp = aut_var.proper().minimal_automaton().complement()
-            tmp = aut.product(comp).trim()
-            if len(tmp.useful_states()) != 0:
+
+            aut = q.automaton_for_side(side_opposite(side))
+            if not mata.Nfa.is_included(aut, aut_var, alphabet = None):
                 return False
+            # aut = q.automaton_for_side(side_opposite(side)).proper()  #TODO MATA INCLUSION
+            # comp = aut_var.proper().minimal_automaton().complement()
+            # tmp = aut.product(comp).trim()
+            # if len(tmp.useful_states()) != 0:
+            #     return False
         return True
 
 
@@ -778,7 +782,7 @@ class FormulaPreprocess(FormulaVarGraph):
             eps = eps | add_var
 
         for var in eps:
-            self.aut_constr[var] = mata.Nfa.intersection(self.aut_constr[var], aut_eps)
+            self.aut_constr[var], _ = mata.Nfa.intersection(self.aut_constr[var], aut_eps)
         super().map_equations(lambda x: x.remove(eps))
         self.clean()
 
@@ -905,7 +909,7 @@ class FormulaPreprocess(FormulaVarGraph):
             if len(super()._get_edges()[v]) == 0:
                 continue
             star = scq.sigma_star_aut()
-            aut_v = self.aut_constr[v].copy()
+            aut_v = self.aut_constr[v]
             sigma_star = mata.Nfa.minimize(mata.Nfa.concatenate(star, aut_v)) 
             if mata.Nfa.equivalence_check(sigma_star, aut_v, alphabet=None):
                 begin_star_vars.add(v)

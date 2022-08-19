@@ -48,7 +48,7 @@ def multiop(automata: Sequence[Aut],
     if len(automata) == 0:
         raise ValueError("Sequence `automata` must be non-empty!")
 
-    res = automata[0].copy()
+    res = automata[0] #WARNING: REMOVED COPY
     for aut in automata[1:]:
         res = operation(res, aut)
 

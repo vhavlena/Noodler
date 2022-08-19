@@ -251,8 +251,8 @@ class AutSingleSEQuery(SingleSEQuery):
         auts_l = self.automata_for_side("left")
         auts_r = self.automata_for_side("right")
 
-        aut_l = multiop(auts_l, lambda x,y: x.concatenate(y))
-        aut_r = multiop(auts_r, lambda x,y: x.concatenate(y))
+        aut_l = multiop(auts_l, lambda x,y: mata.Nfa.concatenate(x,y))
+        aut_r = multiop(auts_r, lambda x,y: mata.Nfa.concatenate(x,y))
 
         tmp_l = aut_l.proper()
         tmp_r = aut_r.proper()
@@ -272,7 +272,7 @@ class AutSingleSEQuery(SingleSEQuery):
         @return Concatenation of automata for a given side
         """
         auts_l = self.automata_for_side(side)
-        return multiop(auts_l, lambda x,y: x.concatenate(y))
+        return multiop(auts_l, lambda x,y: mata.Nfa.concatenate(x,y))
 
 
     def automaton_for_side_minimal(self, side: str) -> Aut:
@@ -484,9 +484,8 @@ class StringConstraintQuery:
         constr_dict = StringConstraintQuery._merge_constraints(constr)
         vars = self.constraint.get_vars()
 
-        sigma_star_aut = self.sigma_star_aut()
         for var in vars:
-            constr_dict.setdefault(var, sigma_star_aut)
+            constr_dict.setdefault(var, self.sigma_star_aut())
         return constr_dict
 
 
@@ -510,8 +509,7 @@ class StringConstraintQuery:
             eqs = [c.left for c in c_and.gather_leafs(ConstraintType.EQ)]
             c_vars = c_and.get_vars()
 
-            sigma_star_aut = self.sigma_star_aut()
             for var in c_vars:
-                constr_dict.setdefault(var, sigma_star_aut)
+                constr_dict.setdefault(var, self.sigma_star_aut())
             queries.append(MultiSEQuery(eqs, constr_dict))
         return queries
