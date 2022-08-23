@@ -320,7 +320,7 @@ class AutSingleSEQuery(SingleSEQuery):
         left = self.automaton_for_side("left")
         right = self.automaton_for_side("right")
         prod, _ = mata.Nfa.intersection(left, right) #.proper().trim()
-        res, _ = mata.is_lang_empty_word_counterexample(prod)
+        res, _ = mata.Nfa.is_lang_empty_word_counterexample(prod)
         return res
 
 
