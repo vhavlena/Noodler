@@ -1,5 +1,6 @@
-import awalipy
+#import awalipy
 import itertools
+import mata
 
 from collections import deque, defaultdict
 from typing import Sequence, Optional, List, Dict, Set, Tuple
@@ -67,7 +68,7 @@ class GraphNoodler:
         sat: Dict[StringEquation, bool] = dict()
 
         if not balance_check:
-            return all(len(v.useful_states()) > 0 for k, v in constr.items()), None
+            return all(len(v.get_useful_states()) > 0 for k, v in constr.items()), None
 
 
         for v in self.graph.vertices:
@@ -95,7 +96,7 @@ class GraphNoodler:
             return self.is_graph_stable(self.aut_constr, sett.balance_check, sett.both_side)[0]
 
         for v, aut in self.aut_constr.items():
-            if aut.num_useful_states() == 0:
+            if len(aut.get_useful_states()) == 0:
                 return False
 
         cache: Dict[StringEquation, Sequence[AutConstraints]] = defaultdict(lambda: [])
@@ -162,11 +163,13 @@ class GraphNoodler:
             if aut_union is None:
                 aut_union = noodle.constraints[var]
             else:
-                aut_union = awalipy.sum(aut_union, noodle.constraints[var]).proper().trim()
+                aut_union = mata.Nfa.union(aut_union, noodle.constraints[var])
+                aut_union.trim()
         if aut_union is None:
             return []
 
-        aut_union = aut_union.minimal_automaton().trim()
+        aut_union = mata.Nfa.minimize(aut_union)
+        aut_union.trim()
         cur_constraints: AutConstraints = query.copy()
         cur_constraints.update({var: aut_union})
         return [cur_constraints]

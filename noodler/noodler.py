@@ -13,6 +13,7 @@ StraightlineNoodleMachine
 """
 import awalipy
 import itertools
+import mata
 
 from collections import deque
 from typing import Sequence, Optional, List
@@ -86,11 +87,17 @@ def noodlify_query(query: SingleSEQuery) -> Sequence[SegAut]:
     noodles : Sequence[Aut]
         left-noodles for ``query``
     """
-    left: SegAut = query.seg_aut("left")
+
+    lefts: SegAut = query.automata_for_side("left")
     right: Aut = query.proper_aut("right")
-    assert left.alphabet() == right.alphabet()
-    product: SegAut = eps_preserving_product(left, right, history=True)
-    return noodlify(product)
+    return mata.Nfa.noodlify_for_equation(lefts, right)
+
+
+    # left: SegAut = query.seg_aut("left")
+    # right: Aut = query.proper_aut("right")
+    # assert left.alphabet() == right.alphabet()
+    # product: SegAut = eps_preserving_product(left, right, history=True)
+    # return noodlify(product)
 
 
 def create_unified_query(equation: StringEquation,
@@ -139,9 +146,10 @@ def create_unified_query(equation: StringEquation,
         aut_l = {left_auts[i] for i in equation.indices_l[var]}
         aut_r = {right_auts[i] for i in equation.indices_r[var]}
         var_auts = aut_l.union(aut_r)
-        product: Aut = multiop(list(var_auts), awalipy.product)
-        const[var] = product.proper().trim()
-        if const[var].num_states() == 0:
+        product: Aut = multiop(list(var_auts), lambda x,y: mata.intersection(x,y)[0])
+        product.trim()
+        const[var] = product
+        if const[var].get_num_of_states() == 0:
             return None
 
     return AutSingleSEQuery(equation, const)
@@ -211,8 +219,8 @@ class SimpleNoodler:
         self.noodles = []
 
         noodles: Sequence[SegAut] = noodlify_query(self.query)
-        for noodle in noodles:
-            auts_l = split_segment_aut(noodle)
+        for auts_l in noodles:
+            #auts_l = split_segment_aut(noodle)
             auts_r = self.query.automata_for_side("right")
             unified = create_unified_query(self.query.eq,
                                            auts_l,

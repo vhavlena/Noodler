@@ -254,12 +254,12 @@ class AutSingleSEQuery(SingleSEQuery):
         aut_l = multiop(auts_l, lambda x,y: mata.Nfa.concatenate(x,y))
         aut_r = multiop(auts_r, lambda x,y: mata.Nfa.concatenate(x,y))
 
-        tmp_l = aut_l.proper()
-        tmp_r = aut_r.proper()
+        tmp_l = aut_l
+        tmp_r = aut_r
         short = tmp_l.get_shortest_words()
 
         for w in short:
-            if int(tmp_r.eval(w)) == 0:
+            if not mata.Nfa.is_in_lang(tmp_r, w):
                 return False
         return True
 
@@ -307,7 +307,7 @@ class AutSingleSEQuery(SingleSEQuery):
         tmp_r = mata.Nfa.minimize(aut_r)
 
 
-        return tmp_l.get_shortest_words() == tmp_r.get_shortest_words()
+        return set(tmp_l.get_shortest_words()) == set(tmp_r.get_shortest_words())
 
         #return awalipy.are_equivalent(aut_l, aut_r)
 

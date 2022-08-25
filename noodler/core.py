@@ -32,7 +32,7 @@ import mata
 import itertools
 
 Aut = mata.Nfa # awalipy.Automaton
-SegAut: Type[mata.Nfa] = mata.Nfa
+SegAut = Sequence[mata.Nfa] #Type[mata.Nfa] = mata.Nfa
 RE = str
 
 TransID = int
