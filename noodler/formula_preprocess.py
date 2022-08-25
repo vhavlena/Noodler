@@ -548,11 +548,11 @@ class FormulaPreprocess(FormulaVarGraph):
         """
         lit = dict()
         for var, aut in self.aut_constr.items():
-            if aut.num_states() == 0:
+            if aut.get_num_of_states() == 0:
                 continue
-            aut = aut.trim()
-            if len(aut.states()) - 1 == len(aut.transitions()) and aut.num_initials() == 1:
-                lit[var] = len(aut.transitions())
+            aut.trim()
+            if aut.get_num_of_states() - 1 == aut.get_num_of_trans() and len(aut.initial_states) == 1:
+                lit[var] = aut.get_num_of_trans()
         return lit
 
 
