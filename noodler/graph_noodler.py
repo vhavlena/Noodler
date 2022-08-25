@@ -1,4 +1,3 @@
-#import awalipy
 import itertools
 import mata
 

@@ -226,19 +226,6 @@ class AutSingleSEQuery(SingleSEQuery):
         return automata
 
 
-    # def is_solution(self) -> bool:
-    #     auts_l = self.automata_for_side("left")
-    #     auts_r = self.automata_for_side("right")
-
-    #     s_l = [ get_shortest_strings_bfs(aut).pop() for aut in auts_l ]
-    #     s_r = [ get_shortest_strings_bfs(aut).pop() for aut in auts_r ]
-
-    #     ass = dict(zip(self.eq.get_side("left"), s_l))
-    #     ass.update(dict(zip(self.eq.get_side("right"), s_r)))
-
-    #     return self.eq.is_solution(ass)
-
-
     def is_sub_balanced(self) -> bool:
         """!
         Check if the query is one side balanced.
