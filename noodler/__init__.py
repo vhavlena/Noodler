@@ -1,8 +1,6 @@
 from .algos import *
 from .core import is_straightline
-from .noodler import create_unified_query, noodlify, noodlify_query
-from .noodler import QueueNoodler, MultiSEQuery, SimpleNoodler, \
-    StraightlineNoodleMachine
+from .noodler import MultiSEQuery, SimpleNoodler
 from .graph_noodler import GraphNoodler
 from .parser import SmtlibParserHackAbc
 

@@ -14,8 +14,7 @@ from .sequery import AutSingleSEQuery, SingleSEQuery, MultiSEQuery, compare_aut_
 from .core import Aut, AutConstraints, SegAut
 
 from .graph_formula import StringEqNode, StringEqGraph
-from .algos import eps_preserving_product, eps_segmentation, multiop, single_final_init, split_segment_aut, get_shortest_strings_bfs
-from .noodler import noodlify, noodlify_query, create_unified_query, is_unified, SimpleNoodler
+from .noodler import SimpleNoodler
 
 
 class StrategyType(Enum):

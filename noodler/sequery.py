@@ -19,7 +19,7 @@ import mata
 import copy
 
 from .utils import show_automata
-from .algos import chain_automata, multiop, get_word_cycles
+from .algos import multiop, get_word_cycles
 #types
 from .core import AutConstraints, Aut, Constraints, SegAut, RE
 # classes
@@ -40,7 +40,7 @@ def compare_aut_constraints(a1: AutConstraints, a2: AutConstraints) -> bool:
         return False
 
     for k1, v1 in a1.items():
-        if not mata.equivalence_check(v1, a2[k1], alphabet=None):
+        if not mata.Nfa.equivalence_check(v1, a2[k1], alphabet=None):
             return False
     return True
 
@@ -253,13 +253,10 @@ class AutSingleSEQuery(SingleSEQuery):
 
         aut_l = multiop(auts_l, lambda x,y: mata.Nfa.concatenate(x,y))
         aut_r = multiop(auts_r, lambda x,y: mata.Nfa.concatenate(x,y))
-
-        tmp_l = aut_l
-        tmp_r = aut_r
-        short = tmp_l.get_shortest_words()
+        short = aut_l.get_shortest_words()
 
         for w in short:
-            if not mata.Nfa.is_in_lang(tmp_r, w):
+            if not mata.Nfa.is_in_lang(aut_r, w):
                 return False
         return True
 

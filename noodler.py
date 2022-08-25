@@ -10,7 +10,6 @@ from git import Repo
 
 from noodler.core import is_straightline
 from noodler.parser import SmtlibParserHackAbc, EmptyFileException
-from noodler.noodler import StraightlineNoodleMachine, QueueNoodler
 from noodler.sequery import StringConstraintQuery, AutSingleSEQuery
 from noodler.graph_noodler import *
 from noodler.graph_formula import StringEqGraph

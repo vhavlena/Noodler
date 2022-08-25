@@ -13,11 +13,8 @@ Public functions
 """
 from typing import Callable, Sequence, Dict, Set
 
-import awalipy
-import ast
-import copy
-import queue
-from collections import defaultdict
+#import awalipy
+import mata
 
 from .core import Aut, SegAut, TransID
 
@@ -55,101 +52,101 @@ def multiop(automata: Sequence[Aut],
     return res
 
 
-def get_shortest_strings_bfs(aut: Aut) -> Set[str]:
-    """!
-    Get shortest strings (regarding their length) of a given automaton using BFS.
+# def get_shortest_strings_bfs(aut: Aut) -> Set[str]:
+#     """!
+#     Get shortest strings (regarding their length) of a given automaton using BFS.
 
-    @param aut: Automaton
-    @return Set of shortest strings
-    """
+#     @param aut: Automaton
+#     @return Set of shortest strings
+#     """
 
-    short = defaultdict(lambda: (-1, set()))
-    concat = lambda x, s: set([ x + u for u in s ])
-    trans = aut.transpose()
+#     short = defaultdict(lambda: (-1, set()))
+#     concat = lambda x, s: set([ x + u for u in s ])
+#     trans = aut.transpose()
 
-    for fin in trans.initial_states():
-        short[fin] = (0, set([""]))
+#     for fin in trans.initial_states():
+#         short[fin] = (0, set([""]))
 
-    lifo = queue.Queue()
-    proc = set(trans.initial_states())
+#     lifo = queue.Queue()
+#     proc = set(trans.initial_states())
 
-    for st in trans.initial_states():
-        lifo.put(st)
+#     for st in trans.initial_states():
+#         lifo.put(st)
 
-    while not lifo.empty():
+#     while not lifo.empty():
 
-        st = lifo.get()
-        dst_l, dst_w = short[st]
+#         st = lifo.get()
+#         dst_l, dst_w = short[st]
 
-        for tr in trans.outgoing(st):
+#         for tr in trans.outgoing(st):
 
-            orig_l, orig_w = short[trans.dst_of(tr)]
-            act_l, act_w = orig_l, copy.deepcopy(orig_w)
+#             orig_l, orig_w = short[trans.dst_of(tr)]
+#             act_l, act_w = orig_l, copy.deepcopy(orig_w)
 
-            if (act_l == -1) or (dst_l + 1 < act_l):
-                label = awali_to_string(trans.label_of(tr))
-                act_w = concat(label, dst_w)
-                act_l = dst_l + 1
-            elif dst_l + 1 == act_l:
-                label = awali_to_string(trans.label_of(tr))
-                act_w.union(concat(label, dst_w))
-                act_l = dst_l + 1
+#             if (act_l == -1) or (dst_l + 1 < act_l):
+#                 label = awali_to_string(trans.label_of(tr))
+#                 act_w = concat(label, dst_w)
+#                 act_l = dst_l + 1
+#             elif dst_l + 1 == act_l:
+#                 label = awali_to_string(trans.label_of(tr))
+#                 act_w.union(concat(label, dst_w))
+#                 act_l = dst_l + 1
 
-            if orig_w != act_w:
-                short.update([(trans.dst_of(tr), (act_l, act_w))])
-                short[trans.dst_of(tr)] = act_l, act_w
+#             if orig_w != act_w:
+#                 short.update([(trans.dst_of(tr), (act_l, act_w))])
+#                 short[trans.dst_of(tr)] = act_l, act_w
 
-            if trans.dst_of(tr) not in proc:
-                proc.add(trans.dst_of(tr))
-                lifo.put(trans.dst_of(tr))
+#             if trans.dst_of(tr) not in proc:
+#                 proc.add(trans.dst_of(tr))
+#                 lifo.put(trans.dst_of(tr))
                
 
-    assert(len(trans.final_states()) == 1)
-    return short[trans.final_states()[0]][1]
+#     assert(len(trans.final_states()) == 1)
+#     return short[trans.final_states()[0]][1]
 
 
-def get_shortest_strings(aut: Aut) -> Set[str]:
-    """!
-    Get shortest strings (regarding their length) of a given automaton.
+# def get_shortest_strings(aut: Aut) -> Set[str]:
+#     """!
+#     Get shortest strings (regarding their length) of a given automaton.
 
-    @param aut: Automaton
-    @return Set of shortest strings
-    """
+#     @param aut: Automaton
+#     @return Set of shortest strings
+#     """
 
-    short = defaultdict(lambda: (-1, set()))
+#     short = defaultdict(lambda: (-1, set()))
 
-    concat = lambda x, s: set([ x + u for u in s ])
+#     concat = lambda x, s: set([ x + u for u in s ])
 
-    for fin in aut.final_states():
-        short[fin] = (0, set([""]))
+#     for fin in aut.final_states():
+#         short[fin] = (0, set([""]))
 
-    changed = True
-    while changed:
-        changed = False
-        for tr in aut.transitions():
-            orig_l, orig_w = short[aut.src_of(tr)]
-            act_l, act_w = orig_l, copy.deepcopy(orig_w)
-            dst_l, dst_w = short[aut.dst_of(tr)]
+#     changed = True
+#     while changed:
+#         changed = False
+#         for tr in aut.transitions():
+#             orig_l, orig_w = short[aut.src_of(tr)]
+#             act_l, act_w = orig_l, copy.deepcopy(orig_w)
+#             dst_l, dst_w = short[aut.dst_of(tr)]
 
-            if act_l == -1:
-                label = awali_to_string(aut.label_of(tr))
-                act_w = concat(label, dst_w)
-                act_l = dst_l + 1
-            elif dst_l + 1 < dst_l:
-                label = awali_to_string(aut.label_of(tr))
-                act_w = concat(label, dst_w)
-                act_l = dst_l + 1
-            elif dst_l + 1 == act_l:
-                label = awali_to_string(aut.label_of(tr))
-                act_w.union(concat(label, dst_w))
-                act_l = dst_l + 1
-            if orig_w != act_w:
-                short.update([(aut.src_of(tr), (act_l, act_w))])
-                short[aut.src_of(tr)] = act_l, act_w
-                changed = True
+#             if act_l == -1:
+#                 label = awali_to_string(aut.label_of(tr))
+#                 act_w = concat(label, dst_w)
+#                 act_l = dst_l + 1
+#             elif dst_l + 1 < dst_l:
+#                 label = awali_to_string(aut.label_of(tr))
+#                 act_w = concat(label, dst_w)
+#                 act_l = dst_l + 1
+#             elif dst_l + 1 == act_l:
+#                 label = awali_to_string(aut.label_of(tr))
+#                 act_w.union(concat(label, dst_w))
+#                 act_l = dst_l + 1
+#             if orig_w != act_w:
+#                 short.update([(aut.src_of(tr), (act_l, act_w))])
+#                 short[aut.src_of(tr)] = act_l, act_w
+#                 changed = True
 
-    assert(len(aut.initial_states()) == 1)
-    return short[aut.initial_states()[0]][1]
+#     assert(len(aut.initial_states()) == 1)
+#     return short[aut.initial_states()[0]][1]
 
 
 def equivalent_all(auts: Sequence[Aut]) -> bool:
@@ -171,295 +168,295 @@ def equivalent_all(auts: Sequence[Aut]) -> bool:
     aut_l = list(auts)
     first_a = aut_l[0]
     for other in aut_l[1:]:
-        if not first_a.are_equivalent(other):
+        if not mata.Nfa.equivalence_check(first_a, other):
             return False
 
     return True
 
 
-def chain_automata(automata: Sequence[Aut]) -> SegAut:
-    """
-    Chain sequence of auts into aut for concatenation.
+# def chain_automata(automata: Sequence[Aut]) -> SegAut:
+#     """
+#     Chain sequence of auts into aut for concatenation.
 
-    Connect the automata in the sequence by ε-transitions. For
-    ``a_1, a_2, … , a_n`` create automaton A that represents the
-    language L(A) = L(a_1) · L(a_2) · … · L(a_n). A is basically
-    an union of ``a_1 … a_n`` as they are, connected with
-    ε-transitions. Each final state of ``a_i`` is connected by
-    an ε-transition with each initial state of ``a_{i+1}.
+#     Connect the automata in the sequence by ε-transitions. For
+#     ``a_1, a_2, … , a_n`` create automaton A that represents the
+#     language L(A) = L(a_1) · L(a_2) · … · L(a_n). A is basically
+#     an union of ``a_1 … a_n`` as they are, connected with
+#     ε-transitions. Each final state of ``a_i`` is connected by
+#     an ε-transition with each initial state of ``a_{i+1}.
 
-    TODO: reimplement using multiop
+#     TODO: reimplement using multiop
 
-    Parameters
-    ----------
-    automata : list of auts
-        Must be non-empty
+#     Parameters
+#     ----------
+#     automata : list of auts
+#         Must be non-empty
 
-    Returns
-    -------
-    A : SegAut
-        Automaton that links auts from ``automata`` by ε-transitions
-        between final an initial states.
-    """
-    res: SegAut = multiop(automata, awalipy.sum)
-    res.allow_eps_transition_here()
+#     Returns
+#     -------
+#     A : SegAut
+#         Automaton that links auts from ``automata`` by ε-transitions
+#         between final an initial states.
+#     """
+#     res: SegAut = multiop(automata, awalipy.sum)
+#     res.allow_eps_transition_here()
 
-    # pre_a is the automaton which will be source of ε-transitions,
-    # next_a is the automaton whose initial states receive the ε-tr.
-    # offsets keep the shift in automata numbers between res and
-    #   pre/next
-    pre_a = automata[0]
-    pre_offset = 0
+#     # pre_a is the automaton which will be source of ε-transitions,
+#     # next_a is the automaton whose initial states receive the ε-tr.
+#     # offsets keep the shift in automata numbers between res and
+#     #   pre/next
+#     pre_a = automata[0]
+#     pre_offset = 0
 
-    # 1. For each final of pre_a:
-    #     I. add ε to next_a
-    #     II. Unset final
-    # 2. Unset init_states of next_a
-    for next_a in automata[1:]:
-        next_offset = pre_offset + len(pre_a.states())
+#     # 1. For each final of pre_a:
+#     #     I. add ε to next_a
+#     #     II. Unset final
+#     # 2. Unset init_states of next_a
+#     for next_a in automata[1:]:
+#         next_offset = pre_offset + len(pre_a.states())
 
-        for final_pre in pre_a.final_states():
-            final_res = pre_offset + final_pre
+#         for final_pre in pre_a.final_states():
+#             final_res = pre_offset + final_pre
 
-            # Add ε-transitions
-            for init_next in next_a.initial_states():
-                init_res = next_offset + init_next
-                res.add_eps_transition(final_res, init_res)
+#             # Add ε-transitions
+#             for init_next in next_a.initial_states():
+#                 init_res = next_offset + init_next
+#                 res.add_eps_transition(final_res, init_res)
 
-            res.unset_final(final_res)
+#             res.unset_final(final_res)
 
-        for init_next in next_a.initial_states():
-            init_res = next_offset + init_next
-            res.unset_initial(init_res)
+#         for init_next in next_a.initial_states():
+#             init_res = next_offset + init_next
+#             res.unset_initial(init_res)
 
-        pre_a = next_a
-        pre_offset = next_offset
+#         pre_a = next_a
+#         pre_offset = next_offset
 
-    return res
-
-
-def awali_to_string(str):
-    alp = str.replace("\\0x0", "\\x")
-    alp = ast.parse("\""+alp+"\"")
-    return alp.body[0].value.value
+#     return res
 
 
-# noinspection PyIncorrectDocstring
-def eps_preserving_product(aut_l: SegAut,
-                           aut_r: Aut,
-                           **opts) -> SegAut:
-    """
-    Intersection of ε-NFA with NFA.
-
-    Create product of ``aut_l`` and ``aut_r``, where ``aut_l``
-    can contain ε-transitions. The product preserves the
-    ε-transitions of ``aut_l``. This means, for each ε-trans
-    of the form `s -ε-> p` and each product state `(s, a)`, an
-    ε-transition `(s, a) -ε-> (p, a)` is created.
-
-    Parameters
-    ----------
-    aut_l : aut with ε-transitions
-    aut_r : aut without ε-transitions
-        Automata must share alphabets.
-
-    opts
-    ----
-    history : Bool, default False
-        Store history into state names.
-
-    Returns
-    -------
-    aut
-        Product of ``aut_l`` with ``aut_r`` with ε-transitions
-        preserved.
-    """
-    names = opts.get("history", False)
-
-    assert aut_l.alphabet() == aut_r.alphabet()
-
-    state_map = {}
-    todo = []
-
-    alphabet = aut_l.alphabet()
-    alphabet = awali_to_string(alphabet)
-
-    new_aut = awalipy.Automaton(alphabet)
-    new_aut.allow_eps_transition_here()
-
-    def get_state(l: int, r: int) -> int:
-        "Return id of (l,r) in new_aut and create it if needed."
-        # Already created
-        if (l, r) in state_map:
-            return state_map[l, r]
-
-        # Create a new state
-        if names:
-            new_s = new_aut.add_state(f"{aut_l.get_state_name(l)} | {aut_r.get_state_name(r)}")
-        else:
-            new_s = new_aut.add_state()
-
-        state_map[l, r] = new_s
-        todo.append((new_s, l, r))
-
-        # Set initial and final states
-        if aut_l.is_final(l) and aut_r.is_final(r):
-            new_aut.set_final(new_s)
-        if aut_l.is_initial(l) and aut_r.is_initial(r):
-            new_aut.set_initial(new_s)
-
-        return new_s
-
-    for left in aut_l.initial_states():
-        for right in aut_r.initial_states():
-            # Added to todo as side-effect of get_state
-            get_state(left, right)
-
-    while len(todo) > 0:
-        s, left, right = todo.pop()
-
-        # 1. Add transitions for all non-ε symbols
-        # 2. Add ε-transitions if any
-        for a in alphabet:
-            for dst_l in aut_l.successors(left, a):
-                #dst_l = aut_l.dst_of(tl)
-                for dst_r in aut_r.successors(right, a):
-                    #dst_r = aut_r.dst_of(tr)
-                    new_aut.set_transition(s,
-                                           get_state(dst_l, dst_r),
-                                           a)
-        for dst_l in aut_l.successors(left, "\\e"):
-            #dst_l = aut_l.dst_of(tl)
-            new_aut.add_eps_transition(s, get_state(dst_l, right))
-
-    return new_aut.trim()
+# def awali_to_string(str):
+#     alp = str.replace("\\0x0", "\\x")
+#     alp = ast.parse("\""+alp+"\"")
+#     return alp.body[0].value.value
 
 
-def eps_segmentation(aut: SegAut) -> Dict[int, Sequence[TransID]]:
-    """
-    Compute depth of ε-transitions.
+# # noinspection PyIncorrectDocstring
+# def eps_preserving_product(aut_l: SegAut,
+#                            aut_r: Aut,
+#                            **opts) -> SegAut:
+#     """
+#     Intersection of ε-NFA with NFA.
 
-    This works only for segment-automata. These are automata
-    whose state space can be split into several segments
-    connected by ε-transitions in a chain. No other
-    ε-transitions are allowed. As a consequence, no ε-trans.
-    can appear in a cycle.
+#     Create product of ``aut_l`` and ``aut_r``, where ``aut_l``
+#     can contain ε-transitions. The product preserves the
+#     ε-transitions of ``aut_l``. This means, for each ε-trans
+#     of the form `s -ε-> p` and each product state `(s, a)`, an
+#     ε-transition `(s, a) -ε-> (p, a)` is created.
 
-    Parameters
-    ----------
-    aut : aut
-        Segment automaton.
+#     Parameters
+#     ----------
+#     aut_l : aut with ε-transitions
+#     aut_r : aut without ε-transitions
+#         Automata must share alphabets.
 
-    Returns
-    -------
-    depths : dict of lists of ε-transitions
-        For each depth i we have that depths[i] contains a list
-        of ε-transitions of depth `i`.
-    """
-    depths = {}
+#     opts
+#     ----
+#     history : Bool, default False
+#         Store history into state names.
 
-    # store already visited states
-    visited = {}
-    for i in aut.states():
-        visited[i] = False
+#     Returns
+#     -------
+#     aut
+#         Product of ``aut_l`` with ``aut_r`` with ε-transitions
+#         preserved.
+#     """
+#     names = opts.get("history", False)
 
-    to_do = []
-    for s in aut.initial_states():
-        to_do.append((s, 0))
+#     assert aut_l.alphabet() == aut_r.alphabet()
 
-    while len(to_do) > 0:
-        state, depth = to_do.pop()
-        if not (visited[state]):
-            visited[state] = True
-            # noinspection PyArgumentList
-            out_trs = aut.outgoing(state)
-            for tr in out_trs:
-                if aut.label_of(tr) == "\\e":
-                    depths.setdefault(depth, [])
-                    depths[depth].append(tr)
-                    to_do.append((aut.dst_of(tr), depth + 1))
-                else:
-                    to_do.append((aut.dst_of(tr), depth))
+#     state_map = {}
+#     todo = []
 
-    return depths
+#     alphabet = aut_l.alphabet()
+#     alphabet = awali_to_string(alphabet)
 
+#     new_aut = awalipy.Automaton(alphabet)
+#     new_aut.allow_eps_transition_here()
 
-def split_segment_aut(aut: SegAut) -> Sequence[Aut]:
-    """
-    Splits segment automaton into segments.
+#     def get_state(l: int, r: int) -> int:
+#         "Return id of (l,r) in new_aut and create it if needed."
+#         # Already created
+#         if (l, r) in state_map:
+#             return state_map[l, r]
 
-    Returns a list of segments for aut in the order
-    from left (initial state in segment automaton) to
-    right (final states of segment automaton).
+#         # Create a new state
+#         if names:
+#             new_s = new_aut.add_state(f"{aut_l.get_state_name(l)} | {aut_r.get_state_name(r)}")
+#         else:
+#             new_s = new_aut.add_state()
 
-    Parameters
-    ----------
-    aut : aut
-        Segment-automaton
+#         state_map[l, r] = new_s
+#         todo.append((new_s, l, r))
 
-    Returns
-    -------
-    list of auts
-        Segments of ``aut``
-    """
-    # We need to make a copy before eps_segmentation
-    # otherwise the trans_id could not match. We destroy
-    # this automaton anyway in the process...
-    aut: SegAut = aut.copy()
-    eps_trans = eps_segmentation(aut)
+#         # Set initial and final states
+#         if aut_l.is_final(l) and aut_r.is_final(r):
+#             new_aut.set_final(new_s)
+#         if aut_l.is_initial(l) and aut_r.is_initial(r):
+#             new_aut.set_initial(new_s)
 
-    segments = [aut.copy() for _ in eps_trans]
-    segments.append(aut.copy())
+#         return new_s
 
-    for depth, trans in eps_trans.items():
-        # Split the left segment from aut into new_segment.
-        for tr in trans:
-            assert aut.label_of(tr) == "\\e"
-            assert segments[depth].label_of(tr) == "\\e"
-            segments[depth].set_final(aut.src_of(tr))
-            segments[depth].del_transition(tr)
-            for i in range(depth + 1, len(segments)):
-                segments[i].del_transition(tr)
-                segments[i].set_initial(aut.dst_of(tr))
-                # aut.set_initial(aut.dst_of(tr))
-            # aut.del_transition(tr)
+#     for left in aut_l.initial_states():
+#         for right in aut_r.initial_states():
+#             # Added to todo as side-effect of get_state
+#             get_state(left, right)
 
-    return [seg.trim().proper() for seg in segments]
+#     while len(todo) > 0:
+#         s, left, right = todo.pop()
+
+#         # 1. Add transitions for all non-ε symbols
+#         # 2. Add ε-transitions if any
+#         for a in alphabet:
+#             for dst_l in aut_l.successors(left, a):
+#                 #dst_l = aut_l.dst_of(tl)
+#                 for dst_r in aut_r.successors(right, a):
+#                     #dst_r = aut_r.dst_of(tr)
+#                     new_aut.set_transition(s,
+#                                            get_state(dst_l, dst_r),
+#                                            a)
+#         for dst_l in aut_l.successors(left, "\\e"):
+#             #dst_l = aut_l.dst_of(tl)
+#             new_aut.add_eps_transition(s, get_state(dst_l, right))
+
+#     return new_aut.trim()
 
 
-def single_final_init(aut: Aut) -> None:
-    """
-    Restricts the number of initial and final states to at most 1.
+# def eps_segmentation(aut: SegAut) -> Dict[int, Sequence[TransID]]:
+#     """
+#     Compute depth of ε-transitions.
 
-    Parameters
-    ----------
-    aut: Aut
+#     This works only for segment-automata. These are automata
+#     whose state space can be split into several segments
+#     connected by ε-transitions in a chain. No other
+#     ε-transitions are allowed. As a consequence, no ε-trans.
+#     can appear in a cycle.
 
-    Returns
-    -------
-    None
-    """
-    if aut.num_initials() > 1:
-        init = aut.add_state()
-        for s in aut.initial_states():
-            for a in aut.alphabet():
-                for dst in aut.successors(s, a):
-                    aut.set_transition(init,
-                                       dst,
-                                       a)
-            aut.unset_initial(s)
-        aut.set_initial(init)
+#     Parameters
+#     ----------
+#     aut : aut
+#         Segment automaton.
 
-    if aut.num_finals() > 1:
-        final = aut.add_state()
-        for s in aut.final_states():
-            for a in aut.alphabet():
-                for tr in aut.incoming(s, a):
-                    aut.set_transition(aut.src_of(tr),
-                                       final,
-                                       a)
-            aut.unset_final(s)
-        aut.set_final(final)
+#     Returns
+#     -------
+#     depths : dict of lists of ε-transitions
+#         For each depth i we have that depths[i] contains a list
+#         of ε-transitions of depth `i`.
+#     """
+#     depths = {}
+
+#     # store already visited states
+#     visited = {}
+#     for i in aut.states():
+#         visited[i] = False
+
+#     to_do = []
+#     for s in aut.initial_states():
+#         to_do.append((s, 0))
+
+#     while len(to_do) > 0:
+#         state, depth = to_do.pop()
+#         if not (visited[state]):
+#             visited[state] = True
+#             # noinspection PyArgumentList
+#             out_trs = aut.outgoing(state)
+#             for tr in out_trs:
+#                 if aut.label_of(tr) == "\\e":
+#                     depths.setdefault(depth, [])
+#                     depths[depth].append(tr)
+#                     to_do.append((aut.dst_of(tr), depth + 1))
+#                 else:
+#                     to_do.append((aut.dst_of(tr), depth))
+
+#     return depths
+
+
+# def split_segment_aut(aut: SegAut) -> Sequence[Aut]:
+#     """
+#     Splits segment automaton into segments.
+
+#     Returns a list of segments for aut in the order
+#     from left (initial state in segment automaton) to
+#     right (final states of segment automaton).
+
+#     Parameters
+#     ----------
+#     aut : aut
+#         Segment-automaton
+
+#     Returns
+#     -------
+#     list of auts
+#         Segments of ``aut``
+#     """
+#     # We need to make a copy before eps_segmentation
+#     # otherwise the trans_id could not match. We destroy
+#     # this automaton anyway in the process...
+#     aut: SegAut = aut.copy()
+#     eps_trans = eps_segmentation(aut)
+
+#     segments = [aut.copy() for _ in eps_trans]
+#     segments.append(aut.copy())
+
+#     for depth, trans in eps_trans.items():
+#         # Split the left segment from aut into new_segment.
+#         for tr in trans:
+#             assert aut.label_of(tr) == "\\e"
+#             assert segments[depth].label_of(tr) == "\\e"
+#             segments[depth].set_final(aut.src_of(tr))
+#             segments[depth].del_transition(tr)
+#             for i in range(depth + 1, len(segments)):
+#                 segments[i].del_transition(tr)
+#                 segments[i].set_initial(aut.dst_of(tr))
+#                 # aut.set_initial(aut.dst_of(tr))
+#             # aut.del_transition(tr)
+
+#     return [seg.trim().proper() for seg in segments]
+
+
+# def single_final_init(aut: Aut) -> None:
+#     """
+#     Restricts the number of initial and final states to at most 1.
+
+#     Parameters
+#     ----------
+#     aut: Aut
+
+#     Returns
+#     -------
+#     None
+#     """
+#     if aut.num_initials() > 1:
+#         init = aut.add_state()
+#         for s in aut.initial_states():
+#             for a in aut.alphabet():
+#                 for dst in aut.successors(s, a):
+#                     aut.set_transition(init,
+#                                        dst,
+#                                        a)
+#             aut.unset_initial(s)
+#         aut.set_initial(init)
+
+#     if aut.num_finals() > 1:
+#         final = aut.add_state()
+#         for s in aut.final_states():
+#             for a in aut.alphabet():
+#                 for tr in aut.incoming(s, a):
+#                     aut.set_transition(aut.src_of(tr),
+#                                        final,
+#                                        a)
+#             aut.unset_final(s)
+#         aut.set_final(final)
 
 
 def get_word_cycles(word: str) -> Set[str]:
