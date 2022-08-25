@@ -13,13 +13,13 @@ MultiSEQuery
     system (sequence) of equations with constraints for
     variables.
 """
-from typing import Sequence, Dict, Collection, Optional
+from typing import Sequence, Dict, Collection, Optional, Set
 
 import mata
 import copy
 
 from .utils import show_automata
-from .algos import chain_automata, multiop
+from .algos import chain_automata, multiop, get_word_cycles
 #types
 from .core import AutConstraints, Aut, Constraints, SegAut, RE
 # classes
@@ -264,6 +264,23 @@ class AutSingleSEQuery(SingleSEQuery):
         return True
 
 
+    def has_empty_product(self) -> bool:
+        """
+        Have the automata corresponding to each side empty language?
+        """
+        auts_l = self.automata_for_side("left")
+        auts_r = self.automata_for_side("right")
+
+        aut_l = multiop(auts_l, mata.Nfa.concatenate(x,y))
+        aut_r = multiop(auts_r, mata.Nfa.concatenate(x,y))
+
+
+        prod, _ = mata.Nfa.intersection(aut_l, aut_r)
+        return mata.Nfa.is_lang_empty_word_counterexample(prod)[0]
+
+        #return len(awalipy.product(tmp_l, tmp_r).trim().final_states()) == 0
+
+
     def automaton_for_side(self, side: str) -> Aut:
         """!
         Get an automaton for a given side.
@@ -322,6 +339,31 @@ class AutSingleSEQuery(SingleSEQuery):
         prod, _ = mata.Nfa.intersection(left, right) #.proper().trim()
         res, _ = mata.Nfa.is_lang_empty_word_counterexample(prod)
         return res
+
+
+    def get_word(self, var):
+        aut = self.constraints[var]
+        return list(aut.shortest(len(aut.useful_states())).keys())[0]
+
+
+    def unsat_pattern(self, literals: Set[str]):
+
+        left = self.eq.get_side("left")
+        right = self.eq.get_side("right")
+        if len(left) != len(right) or len(left) != 2:
+            return False
+
+        if left[0] == right[1] and left[1] in literals and right[0] in literals:
+            word1 = self.get_word(left[1])
+            if not self.get_word(right[0]) in get_word_cycles(word1):
+                return True
+
+        if left[1] == right[0] and left[0] in literals and right[1] in literals:
+            word1 = self.get_word(left[0])
+            if not self.get_word(right[1]) in get_word_cycles(word1):
+                return True
+
+        return False
 
 
 class RESingleSEQuery(SingleSEQuery):

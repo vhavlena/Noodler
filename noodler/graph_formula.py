@@ -1,8 +1,9 @@
 
+from email.policy import default
 from typing import Dict, Type, Union, Sequence, Set, Optional
 from enum import Enum
 from dataclasses import dataclass
-from collections import defaultdict
+from collections import defaultdict, deque
 
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
@@ -147,6 +148,16 @@ class StringEqGraph:
         return StringEqGraph(vert, vert, [])
 
 
+    def union(self, other):
+        """
+        Union two graphs (in place)
+        @param other: Another graph
+        """
+        self.vertices = self.vertices + other.vertices
+        self.initials = self.initials + other.initials
+        self.finals = self.finals + other.finals
+
+
     def get_sccs(self) -> Sequence[Sequence[StringEqNode]]:
         """!
         Get SCCs of the graph
@@ -229,6 +240,17 @@ class StringEqGraph:
             v.eval_formula.rename_eq(lambda x: x.switched)
 
         return cp
+
+    
+    def is_acyclic(self) -> bool:
+        """
+        Is the graph acyclic?
+        """
+        sccs = self.get_sccs()
+        for scc in sccs:
+            if len(scc) > 1:
+                return False
+        return True  
 
 
     def to_graphwiz(self) -> str:
@@ -338,12 +360,12 @@ class StringEqGraph:
 
 
     @staticmethod
-    def quick_unsat_check(equations: Sequence[Sequence[StringEquation]], aut_constraints: AutConstraints):
+    def quick_unsat_check(equations: Sequence[Sequence[StringEquation]], aut_constraints: AutConstraints, literals: Set[str]):
         for con in equations:
             unsat = True
             for eq in con:
                 q = AutSingleSEQuery(eq, aut_constraints)
-                if not q.unsat_check():
+                if not q.unsat_check() and not q.unsat_pattern(literals):
                     unsat = False
                     break
             if unsat:
@@ -498,7 +520,7 @@ class StringEqGraph:
                         vars[v] = aut.get_num_of_trans()
                     else:
                         vars[v] = z3.Int(v)
-                f_or.append(z3.Sum([ vars[v] for v in eq.get_vars_side("left")]) == z3.Sum([ vars[v] for v in eq.get_vars_side("right")]) )
+                f_or.append(z3.Sum([ vars[v] for v in eq.get_side("left")]) == z3.Sum([ vars[v] for v in eq.get_side("right")]) )
             formula.append(z3.Or(f_or))
 
         formula += [v >= 0 for _,v in vars.items()]
@@ -506,3 +528,110 @@ class StringEqGraph:
         s = z3.Solver()
         s.add(formula)
         return s.check() == z3.sat
+
+
+    @staticmethod
+    def get_conj_graphs_succ(equations: Sequence[Sequence[StringEquation]]) -> Sequence["StringEqGraph"]:
+        """!
+        Get a list of independent graphs (ring topology) (variables do not affecting each other).
+
+        @param equations: Sequence of string equations representing a conjunction of equations
+        @return String Equation Graph
+        """
+
+        nodes: Dict[StringEquation, StringEqNode] = dict()
+        all_nodes = []
+        eqs = []
+
+        for clause in equations:
+            cl = []
+            assert(len(clause) == 1)
+            for eq in clause:
+                cl.append(eq)
+            eqs += cl
+
+        nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
+        all_nodes = [ nodes[eq] for eq in eqs]
+
+        for eq in eqs:
+            for eq_dst in eqs:
+                if len(eq.get_vars() & eq_dst.get_vars()) != 0:
+                    nodes[eq].succ.append(nodes[eq_dst])
+                    nodes[eq_dst].succ.append(nodes[eq])
+
+        graph = StringEqGraph(all_nodes, list(nodes.values()), list(nodes.values()))
+        sccs = graph.get_sccs()
+
+        ret = []
+        for scc in sccs:
+            cnf = [[node.eq] for node in scc]
+            if len(cnf) == 0:
+                continue
+            ret.append(StringEqGraph.get_eqs_graph_ring(cnf))
+
+        return ret
+
+
+    def get_inclusion_graph(equations: Sequence[Sequence[StringEquation]]):
+        """
+        Get inclusion graph of the conjunction of string constraints.
+        """
+
+        nodes: Dict[StringEquation, StringEqNode] = dict()
+        all_nodes = []
+        eqs = set()
+
+        for clause in equations:
+            cl = set()
+            assert(len(clause) == 1)
+            for eq in clause:
+                cl.add(eq)
+                cl.add(eq.switched)
+            eqs = eqs | cl
+
+        if len(eqs) == 0:
+            return StringEqGraph([], [], [])
+
+        nodes = { eq: StringEqNode([], StringConstraint(ConstraintType.TRUE), eq, 0) for eq in eqs }
+        all_nodes = [ nodes[eq] for eq in eqs]
+        prev_eq = defaultdict(lambda: set())
+
+        for eq in eqs:
+            for eq_dst in eqs:
+                if eq.switched == eq_dst and (len(eq.get_vars_side("left") & eq.get_vars_side("right")) == 0 and not eq_dst.more_occur_side("right")):
+                    continue
+
+                if len(eq.get_vars_side("left") & eq_dst.get_vars_side("right")) != 0:
+                    nodes[eq_dst].succ.append(nodes[eq])
+                    prev_eq[eq].add(eq_dst)
+
+        
+        graph = StringEqGraph(all_nodes, list(nodes.values()), list(nodes.values()))
+        if not graph.is_acyclic():
+            return StringEqGraph.get_eqs_graph_ring(equations)
+
+        chain_free = []
+        empty = deque([eq for eq in eqs if len(nodes[eq].succ) == 0])
+
+        while len(empty) > 0:
+            eq = empty.popleft()
+
+            if eq.switched not in chain_free:
+                chain_free.append(eq)
+
+            for prev in prev_eq[eq]:
+                nodes[prev].succ.remove(nodes[eq])
+                if len(nodes[prev].succ) == 0:
+                    empty.append(prev)
+
+        rights = []
+        for eq in chain_free:
+            rights.extend(eq.get_side("right"))
+        assert(not StringEquation([], rights).more_occur_side("right"))
+
+        for i in range(len(chain_free) - 1):
+            nodes[chain_free[i]].succ = [nodes[chain_free[i+1]]]
+            nodes[chain_free[i]].eval_formula = StringConstraint(ConstraintType.EQ, chain_free[i+1])
+
+        graph = StringEqGraph([ nodes[eq] for eq in chain_free], [nodes[chain_free[0]]], [nodes[chain_free[-1]]])
+        return graph

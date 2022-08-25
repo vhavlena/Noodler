@@ -70,7 +70,7 @@ def get_shortest_strings_bfs(aut: Aut) -> Set[str]:
     for fin in trans.initial_states():
         short[fin] = (0, set([""]))
 
-    lifo = queue.LifoQueue()
+    lifo = queue.Queue()
     proc = set(trans.initial_states())
 
     for st in trans.initial_states():
@@ -102,6 +102,7 @@ def get_shortest_strings_bfs(aut: Aut) -> Set[str]:
             if trans.dst_of(tr) not in proc:
                 proc.add(trans.dst_of(tr))
                 lifo.put(trans.dst_of(tr))
+               
 
     assert(len(trans.final_states()) == 1)
     return short[trans.final_states()[0]][1]
@@ -459,3 +460,10 @@ def single_final_init(aut: Aut) -> None:
                                        a)
             aut.unset_final(s)
         aut.set_final(final)
+
+
+def get_word_cycles(word: str) -> Set[str]:
+    ret = set()
+    for i in range(len(word)):
+        ret.add(word[i:]+word[0:i])
+    return ret

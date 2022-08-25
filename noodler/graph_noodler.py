@@ -30,6 +30,7 @@ class GraphNoodlerSettings:
     use_cache : bool = False
     both_side : bool = False
     use_retrieval : bool = False
+    prod_pruning : bool = False
 
 
 class GraphNoodler:
@@ -126,6 +127,11 @@ class GraphNoodler:
             for noodle in noodles:
                 cur_constraints: AutConstraints = query.copy()
                 cur_constraints.update(noodle.constraints)
+
+                if sett.prod_pruning:
+                    tmp = AutSingleSEQuery(node.eq, cur_constraints)
+                    if tmp.has_empty_product():
+                        continue
 
                 if (node.eq in fin_eq):
                     st, failed = self.is_graph_stable(cur_constraints, sett.balance_check, sett.both_side)

@@ -541,6 +541,20 @@ class FormulaPreprocess(FormulaVarGraph):
                 lit.add(var)
         return lit
 
+    
+    def get_literals_len(self) -> Dict[str, int]:
+        """
+        Get literals
+        """
+        lit = dict()
+        for var, aut in self.aut_constr.items():
+            if aut.num_states() == 0:
+                continue
+            aut = aut.trim()
+            if len(aut.states()) - 1 == len(aut.transitions()) and aut.num_initials() == 1:
+                lit[var] = len(aut.transitions())
+        return lit
+
 
     def get_unique_vars(self) -> Set[str]:
         """
@@ -1021,3 +1035,77 @@ class FormulaPreprocess(FormulaVarGraph):
             cnf.append(_get_eqs(node.succ))
             node = list(node.succ)[0]
         return cnf
+
+
+    def separate_eqs(self):
+        """
+        Separate each equation
+        """
+        new = set()
+        remove = set()
+        for _, v in super()._get_vertices().items():
+            sep = self._separate_eq(v.eq)
+            if len(sep) > 1:
+                new = new | sep
+                remove.add(v)
+
+        last = super().get_last_node()
+        index = max(super()._get_vertices().keys()) + 1
+        for a in new:
+            last = self.add_equation(index, a, last)
+            index += 1
+        for r in remove:
+            super().remove_node(r)
+
+
+    def _separate_eq(self, eq: StringEquation) -> Set[StringEquation]:
+        """
+        Separate single equation
+        @param eq: Equation
+        @return Set of new separated equations
+        """
+        
+        lits = self.get_literals_len()
+        
+        def _gather_symbols(side: Sequence[str]) -> Sequence[Dict[str, int]]:
+            vars = defaultdict(lambda: 0)
+            ret = []
+            for sym in side:
+                if sym in lits:
+                    vars[""] += lits[sym]
+                else:
+                    vars[sym] += 1
+                vars_copy = vars.copy()
+                ret.append(vars_copy)
+            return ret
+
+        left_vars = _gather_symbols(eq.get_side("left"))
+        right_vars = _gather_symbols(eq.get_side("right"))
+
+        left = eq.get_side("left")
+        right = eq.get_side("right")
+
+        seps = set()
+        prev_i = prev_j = 0
+        for i in range(len(left)):
+            for j in range(len(right)):
+                if left_vars[i] == right_vars[j]:
+                    seps.add(StringEquation(left[prev_i:i+1], right[prev_j:j+1]))
+                    prev_i, prev_j = i+1, j+1
+        if prev_i < len(left) - 1:
+            seps.add(StringEquation(left[prev_i:i+1], right[prev_j:j+1]))
+        return seps
+
+
+    def contains_shared_eq(self) -> bool:
+        """
+        Contains the formula an equation with shared variables on the left and right side?
+        """
+
+        for _, v in super()._get_vertices().items():
+            if len(v.eq.get_vars_side("left") & v.eq.get_vars_side("right")) > 0:
+                return True
+        return False
+        
+
+
