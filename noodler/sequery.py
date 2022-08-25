@@ -124,21 +124,7 @@ class SingleSEQuery:
         Sequence[Aut]
         """
         raise NotImplementedError
-
-    def seg_aut(self, side: str) -> SegAut:
-        """
-        Returns segment automaton for left/right side of equation
-
-        Parameters
-        ----------
-        side : "left" or "right"
-
-        Returns
-        -------
-        SegAut
-            Represents the language of one side of equation.
-        """
-        return chain_automata(self.automata_for_side(side))
+        
 
     def proper_aut(self, side: str,
                    minimize: bool = True) -> Aut:
@@ -160,7 +146,7 @@ class SingleSEQuery:
         res = multiop(self.automata_for_side(side), lambda x,y: mata.Nfa.concatenate(x, y))
 
         if minimize:
-            return mata.Nfa.minimize(res)
+            return mata.Nfa.reduce(res)[0]
 
         return res
 

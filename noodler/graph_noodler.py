@@ -172,7 +172,7 @@ class GraphNoodler:
         if aut_union is None:
             return []
 
-        aut_union = mata.Nfa.minimize(aut_union)
+        aut_union, _ = mata.Nfa.reduce(aut_union)
         aut_union.trim()
         cur_constraints: AutConstraints = query.copy()
         cur_constraints.update({var: aut_union})
