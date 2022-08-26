@@ -12,6 +12,7 @@ StraightlineNoodleMachine
     Solves Straight-line MiultiSEQueries with proved termination.
 """
 #import awalipy
+from calendar import c
 import itertools
 import mata
 
@@ -45,14 +46,8 @@ def noodlify_query(query: SingleSEQuery) -> Sequence[SegAut]:
     """
 
     lefts: SegAut = query.automata_for_side("left")
-    
-    # print(len(lefts))
-    # for l in lefts:
-    #     print(l.get_num_of_states(), l.initial_states)
-    #     print("::", l.to_dot_str())
     right: Aut = query.proper_aut("right")
-    #print(right)
-    return mata.Nfa.noodlify_for_equation(lefts, right) # {"reduce": "bidirectional"}
+    return mata.Nfa.noodlify_for_equation(lefts, right, {"reduce": "forward"}) # {"reduce": "bidirectional"}
 
 
     # left: SegAut = query.seg_aut("left")
@@ -91,10 +86,7 @@ def create_unified_query(equation: StringEquation,
         Unified query for ``equation`` and None if the query cannot
         be unified.
     """
-    if len(left_auts) != len(equation.left):
-        # for a in left_auts:
-        #     print(a)
-        
+    if len(left_auts) != len(equation.left):        
         raise ValueError(f"""
         The length of `left_auts` must agree with length of `equation.left`.
         Given len(left_auts) = {len(left_auts)} and
