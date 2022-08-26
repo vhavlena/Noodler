@@ -104,7 +104,7 @@ def create_unified_query(equation: StringEquation,
         var_auts = aut_l.union(aut_r)
         product: Aut = multiop(list(var_auts), lambda x,y: mata.intersection(x,y)[0])
         product.trim()
-        const[var] = product
+        const[var] = mata.Nfa.reduce(product)[0]
         if const[var].get_num_of_states() == 0:
             return None
 
@@ -186,4 +186,4 @@ class SimpleNoodler:
             if unified is not None:
                 self.noodles.append(unified)
 
-        return self.noodles
+        return list(reversed(self.noodles))
