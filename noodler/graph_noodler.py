@@ -174,6 +174,7 @@ class GraphNoodler:
 
         aut_union = mata.Nfa.reduce(aut_union)[0]
         aut_union.trim()
+        aut_union.unify_initial()
         cur_constraints: AutConstraints = query.copy()
         cur_constraints.update({var: aut_union})
         return [cur_constraints]
