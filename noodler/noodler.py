@@ -86,7 +86,7 @@ def create_unified_query(equation: StringEquation,
         Unified query for ``equation`` and None if the query cannot
         be unified.
     """
-    if len(left_auts) != len(equation.left):        
+    if len(left_auts) != len(equation.left):
         raise ValueError(f"""
         The length of `left_auts` must agree with length of `equation.left`.
         Given len(left_auts) = {len(left_auts)} and
@@ -103,7 +103,7 @@ def create_unified_query(equation: StringEquation,
         aut_l = {left_auts[i] for i in equation.indices_l[var]}
         aut_r = {right_auts[i] for i in equation.indices_r[var]}
         var_auts = aut_l.union(aut_r)
-        product: Aut = multiop(list(var_auts), lambda x,y: mata.intersection(x,y)[0])
+        product: Aut = multiop(list(var_auts), lambda x,y: mata.Nfa.intersection(x,y)[0])
         product.trim()
         const[var] = mata.Nfa.reduce(product)[0]
         if const[var].get_num_of_states() == 0:

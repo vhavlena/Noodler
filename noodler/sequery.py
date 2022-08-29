@@ -241,8 +241,8 @@ class AutSingleSEQuery(SingleSEQuery):
         auts_l = self.automata_for_side("left")
         auts_r = self.automata_for_side("right")
 
-        aut_l = multiop(auts_l, mata.Nfa.concatenate(x,y))
-        aut_r = multiop(auts_r, mata.Nfa.concatenate(x,y))
+        aut_l = multiop(auts_l, lambda x,y: mata.Nfa.concatenate(x,y))
+        aut_r = multiop(auts_r, lambda x,y: mata.Nfa.concatenate(x,y))
 
 
         prod, _ = mata.Nfa.intersection(aut_l, aut_r)
@@ -313,7 +313,8 @@ class AutSingleSEQuery(SingleSEQuery):
 
     def get_word(self, var):
         aut = self.constraints[var]
-        return list(aut.shortest(len(aut.useful_states())).keys())[0]
+        return tuple(list(aut.get_shortest_words())[0])
+        #return list(aut.shortest(len(aut.useful_states())).keys())[0]
 
 
     def unsat_pattern(self, literals: Set[str]):
