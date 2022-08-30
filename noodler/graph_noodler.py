@@ -41,6 +41,7 @@ class GraphNoodler:
         self.graph = vert
         self.literals = lits
         self.unique_vars = uni
+        self.acyclic = vert.is_acyclic()
 
 
     def is_graph_stable(self, constr: AutConstraints, balance_check: bool, both_side: bool):
@@ -213,7 +214,7 @@ class GraphNoodler:
 
         if distr1:
             return distr1, var1
-        elif distr2:
+        elif distr2 and self.acyclic:
             return distr2, var2
         else:
             return False, None
