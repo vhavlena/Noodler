@@ -68,7 +68,7 @@ class GraphNoodler:
         sat: Dict[StringEquation, bool] = dict()
 
         if not balance_check:
-            return all(len(v.get_useful_states()) > 0 for k, v in constr.items()), None
+            return all(not mata.Nfa.is_lang_empty(v) for k, v in constr.items()), None
 
 
         for v in self.graph.vertices:
@@ -96,7 +96,7 @@ class GraphNoodler:
             return self.is_graph_stable(self.aut_constr, sett.balance_check, sett.both_side)[0]
 
         for v, aut in self.aut_constr.items():
-            if len(aut.get_useful_states()) == 0:
+            if mata.Nfa.is_lang_empty(aut):
                 return False
 
         cache: Dict[StringEquation, Sequence[AutConstraints]] = defaultdict(lambda: [])

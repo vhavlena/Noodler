@@ -14,7 +14,6 @@ from .formula import StringConstraint, ConstraintType
 import itertools
 import copy
 import mata
-import z3
 
 
 def side_opposite(side: str) -> str:

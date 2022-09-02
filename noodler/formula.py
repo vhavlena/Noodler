@@ -208,8 +208,6 @@ class StringEquation:
         return hash((tuple(self.left), tuple(self.right)))
 
 
-
-
 class StringConstraint:
     """!
     Class representing general string constraints. Currently supported types of
