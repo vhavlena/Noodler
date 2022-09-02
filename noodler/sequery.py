@@ -245,7 +245,7 @@ class AutSingleSEQuery(SingleSEQuery):
         aut_r = multiop(auts_r, lambda x,y: mata.Nfa.concatenate(x,y))
 
 
-        prod, _ = mata.Nfa.intersection(aut_l, aut_r)
+        prod = mata.Nfa.intersection(aut_l, aut_r)
         return mata.Nfa.is_lang_empty_word_counterexample(prod)[0]
 
         #return len(awalipy.product(tmp_l, tmp_r).trim().final_states()) == 0
@@ -306,7 +306,7 @@ class AutSingleSEQuery(SingleSEQuery):
 
         left = self.automaton_for_side("left")
         right = self.automaton_for_side("right")
-        prod, _ = mata.Nfa.intersection(left, right) #.proper().trim()
+        prod = mata.Nfa.intersection(left, right) #.proper().trim()
         res, _ = mata.Nfa.is_lang_empty_word_counterexample(prod)
         return res
 
@@ -481,7 +481,7 @@ class StringConstraintQuery:
         for c in cnstr:
             for k, v in c.items():
                 if k in res:
-                    res[k], _ = mata.Nfa.intersection(v, res[k]) #.proper().minimal_automaton().trim()
+                    res[k] = mata.Nfa.intersection(v, res[k]) #.proper().minimal_automaton().trim()
                 else:
                     res[k] = v
         return res

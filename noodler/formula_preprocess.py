@@ -14,7 +14,6 @@ from .formula import StringConstraint, ConstraintType
 import itertools
 import copy
 import mata
-import z3
 
 
 def side_opposite(side: str) -> str:
@@ -585,7 +584,7 @@ class FormulaPreprocess(FormulaVarGraph):
         var1 = node.eq.get_side("left")[0]
         var2 = node.eq.get_side("right")[0]
 
-        prod, _ = mata.Nfa.intersection(self.aut_constr[var1], self.aut_constr[var2])
+        prod = mata.Nfa.intersection(self.aut_constr[var1], self.aut_constr[var2])
         prod.trim()
         if prod.get_num_of_states() != 0:
             prod = prod if not self.minimize else mata.Nfa.minimize(prod)
@@ -639,7 +638,7 @@ class FormulaPreprocess(FormulaVarGraph):
                 aut_union = mata.Nfa.union(aut_union, aut)
                 aut_union.trim()
 
-        prod, _ = mata.Nfa.intersection(aut_union, self.aut_constr[var])
+        prod = mata.Nfa.intersection(aut_union, self.aut_constr[var])
         prod.trim()
         if prod.get_num_of_states() != 0:
             prod = prod if not self.minimize else mata.Nfa.minimize(prod)
@@ -797,7 +796,7 @@ class FormulaPreprocess(FormulaVarGraph):
             eps = eps | add_var
 
         for var in eps:
-            self.aut_constr[var], _ = mata.Nfa.intersection(self.aut_constr[var], aut_eps)
+            self.aut_constr[var] = mata.Nfa.intersection(self.aut_constr[var], aut_eps)
         super().map_equations(lambda x: x.remove(eps))
         self.clean()
 
