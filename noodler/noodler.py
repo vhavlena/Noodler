@@ -105,7 +105,7 @@ def create_unified_query(equation: StringEquation,
         var_auts = aut_l.union(aut_r)
         product: Aut = multiop(list(var_auts), lambda x,y: mata.Nfa.intersection(x,y))
         product.trim()
-        const[var] = mata.Nfa.reduce(product)[0]
+        const[var] = mata.Nfa.reduce(product)
         if const[var].get_num_of_states() == 0:
             return None
 

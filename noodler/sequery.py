@@ -146,7 +146,7 @@ class SingleSEQuery:
         res = multiop(self.automata_for_side(side), lambda x,y: mata.Nfa.concatenate(x, y))
 
         if minimize:
-            return mata.Nfa.reduce(res)[0]
+            return mata.Nfa.reduce(res)
 
         return res
 
