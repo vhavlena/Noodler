@@ -690,7 +690,7 @@ class FormulaPreprocess(FormulaVarGraph):
             q = AutSingleSEQuery(node.eq, self.aut_constr)
 
             aut = q.automaton_for_side(side_opposite(side))
-            incl, _ = mata.Nfa.is_included(aut, aut_var, alphabet = None)
+            incl = mata.Nfa.is_included(aut, aut_var, alphabet = None)
             if not incl:
                 return False
             # aut = q.automaton_for_side(side_opposite(side)).proper()  #TODO MATA INCLUSION
