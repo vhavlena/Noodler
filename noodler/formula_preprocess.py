@@ -825,7 +825,7 @@ class FormulaPreprocess(FormulaVarGraph):
         self.simplify_unique()
 
 
-    def reduce_common_sub(self):
+    def reduce_common_sub(self, nums=2):
         """
         Find common parts of each equation and replace them with a fresh equation
         replacing the common parts.
@@ -837,7 +837,7 @@ class FormulaPreprocess(FormulaVarGraph):
         lits = self.get_literals()
         sl = super().get_minimal_unique_sublists(lits)
 
-        replace = [ k for k, v in sl.items() if v >= 2]
+        replace = [ k for k, v in sl.items() if v >= nums]
         replace_map = dict()
         last = super().get_last_node()
         index = max(super()._get_vertices().keys()) + 1
@@ -854,6 +854,43 @@ class FormulaPreprocess(FormulaVarGraph):
         for eq in new_eqs:
             last = super().add_equation(index, eq, last)
             index += 1
+
+        for r, var in replace_map.items():
+            aut_query = AutSingleSEQuery(StringEquation(list(r), list(r)), self.aut_constr)
+            aut = aut_query.automaton_for_side("left")
+            self.aut_constr[var[0]] = aut
+
+
+    def reduce_common_sub_unique(self):
+        """
+        Find common parts of each equation and replace them with a fresh equation
+        replacing the common parts.
+        """
+
+        if len(super()._get_vertices()) == 0:
+            return
+
+        lits = self.get_literals()
+        sl = super().get_minimal_unique_sublists(lits)
+        unique = self.get_unique_vars()
+
+        replace = []
+        for k, v in sl.items():
+            val = []
+            for i in k:
+                if i not in unique:
+                    break
+                val.append(i)
+            if len(val) > 1:
+                replace.append(tuple(val))
+
+        replace_map = dict()
+
+        for i in range(len(replace)):
+            var = self._get_new_var()
+            replace_map[replace[i]] = tuple([var])
+
+        self.replace_eq_sublist(replace_map)
 
         for r, var in replace_map.items():
             aut_query = AutSingleSEQuery(StringEquation(list(r), list(r)), self.aut_constr)

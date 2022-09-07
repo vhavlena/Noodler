@@ -73,6 +73,15 @@ def preprocess_conj_ref(pr, scq, use_min):
     pr.remove_extension(scq)
     pr.propagate_variables()
 
+    pr.reduce_common_sub_unique()
+    pr.remove_extension(scq)
+    pr.generate_identities()
+    pr.propagate_variables()
+    
+
+    # pr.reduce_common_sub(1)
+    # pr.propagate_variables()
+
 
 def main(args: argparse.Namespace):
     filename = args.filename
