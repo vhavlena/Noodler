@@ -118,6 +118,7 @@ def main(args: argparse.Namespace):
             #cnf, aut = preprocess_conj(cnf, aut, scq, args.min)
             if is_single_eq:
                 pr.separate_eqs()
+                pr.propagate_eps()
             if args.light:
                 preprocess_conj_light_ref(pr, scq, args.min)
             elif not is_single_eq:
