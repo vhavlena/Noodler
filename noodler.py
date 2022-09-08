@@ -13,6 +13,7 @@ from noodler.parser import SmtlibParserHackAbc, EmptyFileException
 from noodler.sequery import StringConstraintQuery, AutSingleSEQuery
 from noodler.graph_noodler import *
 from noodler.graph_formula import StringEqGraph
+from noodler.nielsen import Nielsen
 
 from noodler.formula_preprocess import *
 
@@ -119,7 +120,7 @@ def main(args: argparse.Namespace):
                 pr.separate_eqs()
             if args.light:
                 preprocess_conj_light_ref(pr, scq, args.min)
-            else:
+            elif not is_single_eq:
                 preprocess_conj_ref(pr, scq, args.min)
             
         else:
@@ -183,7 +184,12 @@ def main(args: argparse.Namespace):
     for graph in graphs:
         gn: GraphNoodler = GraphNoodler(graph, aut, literals, unique_vars)
 
-        sat = gn.is_sat(sett)
+        if is_single_eq and len(graph.vertices) == 2 and graph.vertices[0].eq.switched == graph.vertices[1].eq:
+            nielsen = Nielsen(graph.vertices[0].eq, aut, literals)
+            if nielsen.is_quadratic(scq):
+                sat = nielsen.is_sat()
+        else:
+            sat = gn.is_sat(sett)
         if sat:
             continue
         print_result("unsat", start, args)
