@@ -188,6 +188,8 @@ def main(args: argparse.Namespace):
             nielsen = Nielsen(graph.vertices[0].eq, aut, literals)
             if nielsen.is_quadratic(scq):
                 sat = nielsen.is_sat()
+            else:
+                sat = gn.is_sat(sett)
         else:
             sat = gn.is_sat(sett)
         if sat:
