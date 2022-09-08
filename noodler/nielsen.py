@@ -91,6 +91,7 @@ class Nielsen:
 
     def is_sat(self):
         self.extend_literals()
+        self.eq = self.trim(self.eq)
         visited = set([self.eq])
         new = deque([self.eq])
 
