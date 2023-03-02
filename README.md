@@ -1,21 +1,14 @@
 # Noodler
 
-Solving string constraints via segment-automata and noodles.
-[![Binder_badge]][binder_link]
-
-The notebook [example-full-algo](example-full-algo.ipynb) uses Noodler to
-produce balanced and unified query for simple string equations.
-
-See [pastry and noodles](pastry-and-noodles.ipynb) to understand noodlification and unification.
-
-[Example-full-algo-long](example-full-algo-long.ipynb) contains equation that take
-long time to solve (especially when starting from the right-hand side).
+Solving string constraints via noodles, see [this paper](https://arxiv.org/abs/2212.02317)
 
 ## Requirements
 
  * Python 3.6+
- * [Awali] with Python bindings (Awalipy) installed.
- * Python packages installed via `requirements.txt`
+ * [This branch of Mata](https://github.com/VeriFIT/mata/tree/python_noodler_final) with Python bindings installed (see README of that repo)
+ * Python packages installed via `requirements.txt` (try running `pip install -r requirements.txt`)
+
+ We recommend using [python virtual environments](https://docs.python.org/3/tutorial/venv.html).
 
 ## Run
 
@@ -26,6 +19,3 @@ To run Noodler, use the following command:
 ```
 where `filename` is a file containing a formula in smtlib2 format.
 
-[Awali]: http://vaucanson-project.org/Awali/
-[Binder_badge]: https://mybinder.org/badge_logo.svg
-[binder_link]: https://mybinder.org/v2/gh/xblahoud/noodler/HEAD?urlpath=lab
