@@ -1,5 +1,8 @@
 # Noodler
 
+> [!IMPORTANT]
+> This tool is obsolete and it is no longer maintained. Use [z3-noodler](https://github.com/VeriFIT/z3-noodler) instead.
+
 Solving string constraints via noodles, see [this paper](https://arxiv.org/abs/2212.02317)
 
 ## Requirements
